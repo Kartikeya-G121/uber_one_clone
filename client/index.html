@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uber Clone</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>Uber Clone</h1>
+    </div>
+    
+    <div class="container">
+        <div class="grid">
+            <!-- Register Driver -->
+            <div class="section">
+                <h3>Register Driver</h3>
+                <div class="form-group">
+                    <input type="text" id="driverName" placeholder="Driver Name">
+                    <input type="text" id="carNo" placeholder="Car Number">
+                    <select id="status">
+                        <option value="available">Available</option>
+                        <option value="busy">Busy</option>
+                    </select>
+                </div>
+                <button onclick="registerDriver()">Register Driver</button>
+                <div id="driverResult" class="result"></div>
+            </div>
+
+            <!-- Request Ride -->
+            <div class="section">
+                <h3>Request Ride</h3>
+                <div class="form-group">
+                    <input type="number" id="userId" placeholder="User ID">
+                    <input type="text" id="pickup" placeholder="Pickup Location">
+                    <input type="text" id="drop" placeholder="Drop Location">
+                </div>
+                <button onclick="requestRide()">Request Ride</button>
+                <div id="rideResult" class="result"></div>
+            </div>
+
+            <!-- Get Drivers -->
+            <div class="section">
+                <h3>View Drivers</h3>
+                <div class="form-group">
+                    <button onclick="getAllDrivers()">All Drivers</button>
+                    <button class="btn-secondary" onclick="getAvailableDrivers()">Available Only</button>
+                </div>
+                <div id="driversResult" class="result"></div>
+            </div>
+
+            <!-- Get User Rides -->
+            <div class="section">
+                <h3>View User Rides</h3>
+                <div class="form-group">
+                    <input type="number" id="searchUserId" placeholder="User ID">
+                    <button onclick="getUserRides()">Get Rides</button>
+                </div>
+                <div id="ridesResult" class="result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

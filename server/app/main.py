@@ -1,4 +1,5 @@
 from fastapi import FastAPI, Depends, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List
 from . import crud, models, schemas
@@ -7,6 +8,14 @@ from .database import SessionLocal, engine, get_db
 models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="Uber API", version="1.0.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 @app.post("/request_ride", response_model=schemas.RideRequest)
 def request_ride(ride: schemas.RideRequestCreate, db: Session = Depends(get_db)):
