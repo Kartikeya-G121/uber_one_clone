@@ -1,0 +1,111 @@
+{
+	"info": {
+		"name": "Uber API",
+		"description": "Collection for testing Uber-like API endpoints",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"item": [
+		{
+			"name": "Health Check",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": [""]
+				}
+			}
+		},
+		{
+			"name": "Register Driver",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"name\": \"John Doe\",\n  \"car_no\": \"ABC123\",\n  \"status\": \"available\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/register_driver",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["register_driver"]
+				}
+			}
+		},
+		{
+			"name": "Request Ride",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"user_id\": 1,\n  \"pickup_location\": \"Downtown Mall\",\n  \"drop_location\": \"Airport\"\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/request_ride",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["request_ride"]
+				}
+			}
+		},
+		{
+			"name": "Get All Drivers",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/drivers",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["drivers"]
+				}
+			}
+		},
+		{
+			"name": "Get Available Drivers",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/drivers/available",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["drivers", "available"]
+				}
+			}
+		},
+		{
+			"name": "Get Rides by User ID",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/rides/1",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["rides", "1"]
+				}
+			}
+		}
+	]
+}

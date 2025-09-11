@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  server:
+    build: ./server
+    ports:
+      - "8000:8000"
+    environment:
+      DATABASE_URL: postgresql://postgres:SHER@host.docker.internal:5432/uber_db
