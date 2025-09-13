@@ -31,7 +31,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n  \"name\": \"John Doe\",\n  \"car_no\": \"ABC123\",\n  \"status\": \"available\"\n}"
+					"raw": "{\n  \"name\": \"John Doe\",\n  \"car_no\": \"ABC123\",\n  \"status\": \"available\",\n  \"latitude\": 40.7128,\n  \"longitude\": -74.0060\n}"
 				},
 				"url": {
 					"raw": "http://localhost:8000/register_driver",
@@ -39,6 +39,29 @@
 					"host": ["localhost"],
 					"port": "8000",
 					"path": ["register_driver"]
+				}
+			}
+		},
+		{
+			"name": "Bulk Register Drivers",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"drivers\": [\n    {\n      \"name\": \"Alice Smith\",\n      \"car_no\": \"XYZ789\",\n      \"status\": \"available\",\n      \"latitude\": 40.7589,\n      \"longitude\": -73.9851\n    },\n    {\n      \"name\": \"Bob Johnson\",\n      \"car_no\": \"DEF456\",\n      \"status\": \"available\",\n      \"latitude\": 40.7505,\n      \"longitude\": -73.9934\n    }\n  ]\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/register_drivers_bulk",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["register_drivers_bulk"]
 				}
 			}
 		},
@@ -54,7 +77,7 @@
 				],
 				"body": {
 					"mode": "raw",
-					"raw": "{\n  \"user_id\": 1,\n  \"pickup_location\": \"Downtown Mall\",\n  \"drop_location\": \"Airport\"\n}"
+					"raw": "{\n  \"user_id\": 1,\n  \"pickup_location\": \"Times Square\",\n  \"drop_location\": \"Central Park\",\n  \"pickup_lat\": 40.7580,\n  \"pickup_lon\": -73.9855,\n  \"drop_lat\": 40.7829,\n  \"drop_lon\": -73.9654\n}"
 				},
 				"url": {
 					"raw": "http://localhost:8000/request_ride",
@@ -62,6 +85,85 @@
 					"host": ["localhost"],
 					"port": "8000",
 					"path": ["request_ride"]
+				}
+			}
+		},
+		{
+			"name": "Add to Queue",
+			"request": {
+				"method": "POST",
+				"header": [
+					{
+						"key": "Content-Type",
+						"value": "application/json"
+					}
+				],
+				"body": {
+					"mode": "raw",
+					"raw": "{\n  \"user_id\": 2,\n  \"pickup_location\": \"Brooklyn Bridge\",\n  \"drop_location\": \"Statue of Liberty\",\n  \"pickup_lat\": 40.7061,\n  \"pickup_lon\": -73.9969,\n  \"drop_lat\": 40.6892,\n  \"drop_lon\": -74.0445\n}"
+				},
+				"url": {
+					"raw": "http://localhost:8000/add_to_queue",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["add_to_queue"]
+				}
+			}
+		},
+		{
+			"name": "Add Driver Location",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/add_driver_location?driver_id=1&latitude=40.7614&longitude=-73.9776",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["add_driver_location"],
+					"query": [
+						{
+							"key": "driver_id",
+							"value": "1"
+						},
+						{
+							"key": "latitude",
+							"value": "40.7614"
+						},
+						{
+							"key": "longitude",
+							"value": "-73.9776"
+						}
+					]
+				}
+			}
+		},
+		{
+			"name": "Assign Driver",
+			"request": {
+				"method": "POST",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/assign_driver",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["assign_driver"]
+				}
+			}
+		},
+		{
+			"name": "Queue Status",
+			"request": {
+				"method": "GET",
+				"header": [],
+				"url": {
+					"raw": "http://localhost:8000/queue_status",
+					"protocol": "http",
+					"host": ["localhost"],
+					"port": "8000",
+					"path": ["queue_status"]
 				}
 			}
 		},

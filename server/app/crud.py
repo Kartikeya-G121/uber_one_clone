@@ -23,3 +23,11 @@ def create_ride_request(db: Session, ride: schemas.RideRequestCreate):
 
 def get_rides_by_user(db: Session, user_id: int):
     return db.query(models.RideRequest).filter(models.RideRequest.user_id == user_id).all()
+
+def create_bulk_drivers(db: Session, drivers: list[schemas.DriverCreate]):
+    db_drivers = [models.Driver(**driver.dict()) for driver in drivers]
+    db.add_all(db_drivers)
+    db.commit()
+    for driver in db_drivers:
+        db.refresh(driver)
+    return db_drivers
