@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uber - Rider</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>🚗 Uber Rider</h1>
+        <div class="nav">
+            <a href="index.html" class="active">Request Ride</a>
+            <a href="../driver/index.html">Switch to Driver</a>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="ride-form">
+            <h2>Where to?</h2>
+            
+            <div class="location-inputs">
+                <div class="input-group">
+                    <label>📍 Pickup Location</label>
+                    <input type="text" id="pickup" placeholder="Enter pickup address">
+                    <div class="coords">
+                        <input type="number" id="pickupLat" placeholder="Latitude" step="any">
+                        <input type="number" id="pickupLon" placeholder="Longitude" step="any">
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label>🎯 Drop Location</label>
+                    <input type="text" id="drop" placeholder="Enter destination">
+                    <div class="coords">
+                        <input type="number" id="dropLat" placeholder="Latitude" step="any">
+                        <input type="number" id="dropLon" placeholder="Longitude" step="any">
+                    </div>
+                </div>
+                
+                <input type="number" id="userId" placeholder="Your User ID" required>
+            </div>
+            
+            <button class="request-btn" onclick="requestRide()">Request Ride</button>
+            
+            <div id="rideStatus" class="status"></div>
+        </div>
+        
+        <div class="ride-history">
+            <h3>Your Rides</h3>
+            <div class="search-rides">
+                <input type="number" id="searchUserId" placeholder="Enter User ID">
+                <button onclick="getUserRides()">View My Rides</button>
+            </div>
+            <div id="ridesResult" class="rides-list"></div>
+        </div>
+        
+        <div class="available-drivers">
+            <h3>Available Drivers Nearby</h3>
+            <button onclick="getAvailableDrivers()">Find Drivers</button>
+            <div id="driversResult" class="drivers-list"></div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

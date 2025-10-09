@@ -3,94 +3,136 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Uber Clone</title>
-    <link rel="stylesheet" href="styles.css">
+    <title>Uber Clone - Choose Your Role</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #000000;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+        
+        .container {
+            text-align: center;
+            max-width: 600px;
+            padding: 2rem;
+        }
+        
+        .logo {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+        }
+        
+        .subtitle {
+            font-size: 1.2rem;
+            margin-bottom: 3rem;
+            opacity: 0.9;
+        }
+        
+        .role-selection {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 2rem;
+            margin-bottom: 2rem;
+        }
+        
+        .role-card {
+            background: rgba(255, 255, 255, 0.95);
+            color: #333;
+            padding: 2rem;
+            border-radius: 15px;
+            text-decoration: none;
+            transition: transform 0.3s, box-shadow 0.3s;
+            box-shadow: 0 8px 25px rgba(0,0,0,0.1);
+        }
+        
+        .role-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.2);
+        }
+        
+        .role-icon {
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        
+        .role-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+        
+        .role-description {
+            font-size: 1rem;
+            opacity: 0.7;
+        }
+        
+        .admin-link {
+            background: rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 1rem 2rem;
+            border-radius: 25px;
+            text-decoration: none;
+            display: inline-block;
+            margin-top: 1rem;
+            transition: background 0.3s;
+        }
+        
+        .admin-link:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+        
+        @media (max-width: 768px) {
+            .role-selection {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+            
+            h1 {
+                font-size: 2rem;
+            }
+            
+            .container {
+                padding: 1rem;
+            }
+        }
+    </style>
 </head>
 <body>
-    <div class="header">
-        <h1>Uber Clone</h1>
-    </div>
-    
     <div class="container">
-        <div class="grid">
-            <!-- Register Driver -->
-            <div class="section">
-                <h3>Register Driver</h3>
-                <div class="form-group">
-                    <input type="text" id="driverName" placeholder="Driver Name">
-                    <input type="text" id="carNo" placeholder="Car Number">
-                    <select id="status">
-                        <option value="available">Available</option>
-                        <option value="busy">Busy</option>
-                    </select>
-                </div>
-                <button onclick="registerDriver()">Register Driver</button>
-                <button class="btn-secondary" onclick="registerBulkDrivers()">Bulk Register</button>
-                <div id="driverResult" class="result"></div>
-                
-                <div id="bulkDrivers" style="display:none;">
-                    <h4>Bulk Driver Registration</h4>
-                    <textarea id="bulkDriverData" placeholder='[{"name":"John","car_no":"ABC123","status":"available"},{"name":"Jane","car_no":"XYZ789","status":"available"}]' rows="6" style="width:100%;margin:10px 0;"></textarea>
-                    <button onclick="submitBulkDrivers()">Submit Bulk</button>
-                    <button class="btn-secondary" onclick="cancelBulk()">Cancel</button>
-                </div>
-            </div>
-
-            <!-- Request Ride -->
-            <div class="section">
-                <h3>Request Ride</h3>
-                <div class="form-group">
-                    <input type="number" id="userId" placeholder="User ID">
-                    <input type="text" id="pickup" placeholder="Pickup Location">
-                    <input type="number" id="pickupLat" placeholder="Pickup Latitude" step="any">
-                    <input type="number" id="pickupLon" placeholder="Pickup Longitude" step="any">
-                    <input type="text" id="drop" placeholder="Drop Location">
-                    <input type="number" id="dropLat" placeholder="Drop Latitude" step="any">
-                    <input type="number" id="dropLon" placeholder="Drop Longitude" step="any">
-                </div>
-                <button onclick="requestRide()">Request Ride</button>
-                <button class="btn-secondary" onclick="addToQueue()">Add to Queue</button>
-                <div id="rideResult" class="result"></div>
-            </div>
-
-            <!-- Get Drivers -->
-            <div class="section">
-                <h3>View Drivers</h3>
-                <div class="form-group">
-                    <button onclick="getAllDrivers()">All Drivers</button>
-                    <button class="btn-secondary" onclick="getAvailableDrivers()">Available Only</button>
-                </div>
-                <div id="driversResult" class="result"></div>
-            </div>
-
-            <!-- Driver Assignment -->
-            <div class="section">
-                <h3>Driver Assignment</h3>
-                <div class="form-group">
-                    <input type="number" id="driverIdLoc" placeholder="Driver ID">
-                    <input type="number" id="driverLat" placeholder="Driver Latitude" step="any">
-                    <input type="number" id="driverLon" placeholder="Driver Longitude" step="any">
-                    <button onclick="addDriverLocation()">Add Driver Location</button>
-                </div>
-                <div class="form-group">
-                    <button onclick="assignDriver()">Assign Driver</button>
-                    <button class="btn-secondary" onclick="getQueueStatus()">Queue Status</button>
-                </div>
-                <div id="assignmentResult" class="result"></div>
-            </div>
-
-            <!-- Get User Rides -->
-            <div class="section">
-                <h3>View User Rides</h3>
-                <div class="form-group">
-                    <input type="number" id="searchUserId" placeholder="User ID">
-                    <button onclick="getUserRides()">Get Rides</button>
-                </div>
-                <div id="ridesResult" class="result"></div>
-            </div>
+        <div class="logo">🚗</div>
+        <h1>Uber Clone</h1>
+        <p class="subtitle">Choose your role to get started</p>
+        
+        <div class="role-selection">
+            <a href="user/index.html" class="role-card">
+                <div class="role-icon">🧑‍💼</div>
+                <div class="role-title">I'm a Rider</div>
+                <div class="role-description">Request rides and get to your destination</div>
+            </a>
+            
+            <a href="driver/index.html" class="role-card">
+                <div class="role-icon">🚙</div>
+                <div class="role-title">I'm a Driver</div>
+                <div class="role-description">Register as a driver and accept ride requests</div>
+            </a>
         </div>
+        
+        <a href="admin/index.html" class="admin-link">🔧 Admin Panel (Original Interface)</a>
     </div>
-
-    <script src="script.js"></script>
 </body>
 </html>

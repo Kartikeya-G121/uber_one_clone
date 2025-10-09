@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uber Clone - Admin Panel</title>
+    <link rel="stylesheet" href="styles.css">
+    <style>
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+        }
+        .nav a {
+            color: white;
+            text-decoration: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            transition: background 0.3s;
+        }
+        .nav a:hover {
+            background: rgba(255,255,255,0.2);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>🔧 Uber Admin Panel</h1>
+        <div class="nav">
+            <a href="../index.html">← Back to Home</a>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="grid">
+            <!-- Register Driver -->
+            <div class="section">
+                <h3>Register Driver</h3>
+                <div class="form-group">
+                    <input type="text" id="driverName" placeholder="Driver Name">
+                    <input type="text" id="carNo" placeholder="Car Number">
+                    <select id="status">
+                        <option value="available">Available</option>
+                        <option value="busy">Busy</option>
+                    </select>
+                </div>
+                <button onclick="registerDriver()">Register Driver</button>
+                <button class="btn-secondary" onclick="registerBulkDrivers()">Bulk Register</button>
+                <div id="driverResult" class="result"></div>
+                
+                <div id="bulkDrivers" style="display:none;">
+                    <h4>Bulk Driver Registration</h4>
+                    <textarea id="bulkDriverData" placeholder='[{"name":"John","car_no":"ABC123","status":"available"},{"name":"Jane","car_no":"XYZ789","status":"available"}]' rows="6" style="width:100%;margin:10px 0;"></textarea>
+                    <button onclick="submitBulkDrivers()">Submit Bulk</button>
+                    <button class="btn-secondary" onclick="cancelBulk()">Cancel</button>
+                </div>
+            </div>
+
+            <!-- Request Ride -->
+            <div class="section">
+                <h3>Request Ride</h3>
+                <div class="form-group">
+                    <input type="number" id="userId" placeholder="User ID">
+                    <input type="text" id="pickup" placeholder="Pickup Location">
+                    <input type="number" id="pickupLat" placeholder="Pickup Latitude" step="any">
+                    <input type="number" id="pickupLon" placeholder="Pickup Longitude" step="any">
+                    <input type="text" id="drop" placeholder="Drop Location">
+                    <input type="number" id="dropLat" placeholder="Drop Latitude" step="any">
+                    <input type="number" id="dropLon" placeholder="Drop Longitude" step="any">
+                </div>
+                <button onclick="requestRide()">Request Ride</button>
+                <button class="btn-secondary" onclick="addToQueue()">Add to Queue</button>
+                <div id="rideResult" class="result"></div>
+            </div>
+
+            <!-- Get Drivers -->
+            <div class="section">
+                <h3>View Drivers</h3>
+                <div class="form-group">
+                    <button onclick="getAllDrivers()">All Drivers</button>
+                    <button class="btn-secondary" onclick="getAvailableDrivers()">Available Only</button>
+                </div>
+                <div id="driversResult" class="result"></div>
+            </div>
+
+            <!-- Driver Assignment -->
+            <div class="section">
+                <h3>Driver Assignment</h3>
+                <div class="form-group">
+                    <input type="number" id="driverIdLoc" placeholder="Driver ID">
+                    <input type="number" id="driverLat" placeholder="Driver Latitude" step="any">
+                    <input type="number" id="driverLon" placeholder="Driver Longitude" step="any">
+                    <button onclick="addDriverLocation()">Add Driver Location</button>
+                </div>
+                <div class="form-group">
+                    <button onclick="assignDriver()">Assign Driver</button>
+                    <button class="btn-secondary" onclick="getQueueStatus()">Queue Status</button>
+                </div>
+                <div id="assignmentResult" class="result"></div>
+            </div>
+
+            <!-- Get User Rides -->
+            <div class="section">
+                <h3>View User Rides</h3>
+                <div class="form-group">
+                    <input type="number" id="searchUserId" placeholder="User ID">
+                    <button onclick="getUserRides()">Get Rides</button>
+                </div>
+                <div id="ridesResult" class="result"></div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>

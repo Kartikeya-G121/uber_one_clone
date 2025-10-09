@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Uber - Driver</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <div class="header">
+        <h1>🚙 Uber Driver</h1>
+        <div class="nav">
+            <a href="index.html" class="active">Driver Dashboard</a>
+            <a href="../user/index.html">Switch to Rider</a>
+        </div>
+    </div>
+    
+    <div class="container">
+        <div class="driver-registration">
+            <h2>Driver Registration</h2>
+            <div class="form-group">
+                <input type="text" id="driverName" placeholder="Full Name" required>
+                <input type="text" id="carNo" placeholder="Car Number (e.g., ABC-123)" required>
+                <select id="status">
+                    <option value="available">Available</option>
+                    <option value="busy">Busy</option>
+                    <option value="offline">Offline</option>
+                </select>
+            </div>
+            <button onclick="registerDriver()">Register as Driver</button>
+            <div id="driverResult" class="result"></div>
+        </div>
+        
+        <div class="location-update">
+            <h3>Update Your Location</h3>
+            <div class="form-group">
+                <input type="number" id="driverIdLoc" placeholder="Your Driver ID" required>
+                <input type="number" id="driverLat" placeholder="Current Latitude" step="any" required>
+                <input type="number" id="driverLon" placeholder="Current Longitude" step="any" required>
+            </div>
+            <button onclick="updateLocation()">Update Location</button>
+            <div id="locationResult" class="result"></div>
+        </div>
+        
+        <div class="ride-management">
+            <h3>Ride Management</h3>
+            <div class="action-buttons">
+                <button onclick="checkForRides()">Check for Ride Requests</button>
+                <button onclick="acceptRide()">Accept Next Ride</button>
+                <button onclick="getQueueStatus()">View Queue Status</button>
+            </div>
+            <div id="rideManagement" class="result"></div>
+        </div>
+        
+        <div class="driver-stats">
+            <h3>All Drivers</h3>
+            <button onclick="viewAllDrivers()">View All Drivers</button>
+            <div id="allDrivers" class="drivers-grid"></div>
+        </div>
+        
+        <div class="bulk-registration">
+            <h3>Bulk Driver Registration</h3>
+            <button onclick="showBulkForm()">Add Multiple Drivers</button>
+            <div id="bulkForm" class="bulk-form" style="display:none;">
+                <textarea id="bulkDriverData" placeholder='[{"name":"John Doe","car_no":"ABC123","status":"available"},{"name":"Jane Smith","car_no":"XYZ789","status":"available"}]' rows="6"></textarea>
+                <div class="bulk-actions">
+                    <button onclick="submitBulkDrivers()">Submit All</button>
+                    <button onclick="hideBulkForm()">Cancel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html>
