@@ -46,10 +46,15 @@ def register_drivers_bulk(bulk_data: schemas.BulkDriverCreate, db: Session = Dep
     return crud.create_bulk_drivers(db=db, drivers=bulk_data.drivers)
 
 @app.post("/assign_driver")
-def assign_driver():
+def assign_driver(db: Session = Depends(get_db)):
     assignment = ride_service.assign_driver()
     if assignment is None:
         raise HTTPException(status_code=404, detail="No rides or drivers available")
+    
+    # Update driver status in database
+    driver_id = assignment["driver"]["id"]
+    crud.update_driver_status(db, driver_id, "busy")
+    
     return assignment
 
 @app.post("/add_to_queue")
@@ -76,6 +81,30 @@ def get_queue_status():
     return {
         "rides_in_queue": len(ride_service.ride_queue),
         "available_drivers": len(ride_service.available_drivers)
+    }
+
+@app.get("/driver/{driver_id}", response_model=schemas.Driver)
+def get_driver(driver_id: int, db: Session = Depends(get_db)):
+    """Get driver information by ID"""
+    driver = crud.get_driver_by_id(db, driver_id)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    return driver
+
+@app.post("/complete_ride/{driver_id}")
+def complete_ride(driver_id: int, db: Session = Depends(get_db)):
+    """Mark ride as complete and make driver available again"""
+    driver = crud.update_driver_status(db, driver_id, "available")
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    
+    return {
+        "message": f"Driver {driver_id} is now available",
+        "driver": {
+            "id": driver.id,
+            "name": driver.name,
+            "status": driver.status
+        }
     }
 
 @app.get("/")

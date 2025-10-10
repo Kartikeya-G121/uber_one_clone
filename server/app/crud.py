@@ -14,6 +14,17 @@ def get_drivers(db: Session):
 def get_available_drivers(db: Session):
     return db.query(models.Driver).filter(models.Driver.status == "available").all()
 
+def get_driver_by_id(db: Session, driver_id: int):
+    return db.query(models.Driver).filter(models.Driver.id == driver_id).first()
+
+def update_driver_status(db: Session, driver_id: int, status: str):
+    driver = db.query(models.Driver).filter(models.Driver.id == driver_id).first()
+    if driver:
+        driver.status = status
+        db.commit()
+        db.refresh(driver)
+    return driver
+
 def create_ride_request(db: Session, ride: schemas.RideRequestCreate):
     db_ride = models.RideRequest(**ride.dict())
     db.add(db_ride)
