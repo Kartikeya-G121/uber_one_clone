@@ -1,79 +1,134 @@
-# Uber-like Mini Project
+# 🚗 Uber Clone - Dynamic Ride Containers
 
-A simple Uber-like application with FastAPI backend and PostgreSQL database.
+Uber-like app with FastAPI backend where **each ride runs in its own Docker container** on a separate port.
 
-## Project Structure
-```
-uber_project/
-├── server/
-│   ├── app/
-│   │   ├── main.py          # FastAPI application
-│   │   ├── models.py        # Database models
-│   │   ├── schemas.py       # Pydantic schemas
-│   │   ├── database.py      # Database configuration
-│   │   └── crud.py          # Database operations
-│   ├── requirements.txt     # Python dependencies
-│   └── Dockerfile          # Server container
-├── client/                  # Client implementation (TBD)
-├── docker-compose.yml       # Docker orchestration
-├── .env                     # Environment variables
-└── README.md               # This file
-```
+## 🚀 Quick Start
 
-## API Endpoints
-
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| POST | `/request_ride` | Create a new ride request with coordinates |
-| GET | `/rides/{user_id}` | Get all rides for a user |
-| POST | `/register_driver` | Register a new driver with location |
-| POST | `/register_drivers_bulk` | Register multiple drivers at once |
-| GET | `/drivers/available` | Get all available drivers |
-| GET | `/drivers` | Get all drivers |
-| POST | `/add_to_queue` | Add ride request to assignment queue |
-| POST | `/add_driver_location` | Add driver to available pool with location |
-| POST | `/assign_driver` | Assign nearest driver to oldest ride request |
-| GET | `/queue_status` | Get current queue and driver status |
-
-## Quick Start
-
-1. Start the services:
 ```bash
-docker-compose up --build
+# 1. Setup (one-time)
+./setup_containers.sh
+
+# 2. Start server
+docker compose up
+
+# 3. Spawn test rides
+./spawn_test_rides.sh
 ```
 
-2. API will be available at: http://localhost:8000
-3. PostgreSQL will be available at: localhost:5432
+**Result:** 3 rides on ports 7000, 7001, 7002
+- http://localhost:7000/docs
+- http://localhost:7001/docs
+- http://localhost:7002/docs
 
-## Testing
+## ✨ Features
 
-Import `Uber_API.postman_collection.json` into Postman to test all endpoints.
+- **🐳 Container Per Ride** - Each ride in isolated Docker container
+- **🔢 Auto Port Allocation** - Starts at 7000, increments automatically
+- **📍 Location Matching** - Haversine formula for nearest driver
+- **🎯 Queue Management** - FIFO ride assignment
+- **🖥️ Web UI** - Rider, Driver, and Admin interfaces
 
-## Database Schema
+## 📡 Key API Endpoints
 
-**drivers table:**
-- id (Primary Key)
-- name
-- car_no
-- status
-- latitude
-- longitude
+| Endpoint | Description |
+|----------|-------------|
+| `POST /request_ride_container` | Create ride + spawn container |
+| `GET /ride_containers` | List all active containers |
+| `POST /ride_container/{id}/stop` | Stop container |
+| `POST /cleanup_containers` | Stop all containers |
+| `POST /request_ride` | Traditional ride request |
+| `POST /assign_driver` | Assign nearest driver |
 
-**ride_requests table:**
-- id (Primary Key)
-- user_id
-- pickup_location
-- drop_location
-- pickup_lat
-- pickup_lon
-- drop_lat
-- drop_lon
-- created_at
+**Full API:** http://localhost:8000/docs
 
-## Features
+## 🏗️ Architecture
 
-- **Driver Assignment**: Automatic assignment of nearest driver using Haversine formula
-- **Bulk Registration**: Register multiple drivers simultaneously
-- **Queue Management**: FIFO ride request queue with real-time status
-- **Location-based Matching**: GPS coordinates for accurate distance calculation
-- **ETA Calculation**: Estimated time of arrival based on 30 km/h average speed
+```
+Main Server (8000) → Container Manager → Ride Containers
+                                         ├─ Ride #1 (7000)
+                                         ├─ Ride #2 (7001)
+                                         └─ Ride #N (7000+N)
+```
+
+## � Request a Ride
+
+**UI:** http://localhost:3000/user/index.html
+
+**API:**
+```bash
+curl -X POST http://localhost:8000/request_ride_container \
+  -H "Content-Type: application/json" \
+  -d '{
+    "user_id": 1,
+    "pickup_location": "Times Square",
+    "drop_location": "Central Park",
+    "pickup_lat": 40.7580,
+    "pickup_lon": -73.9855,
+    "drop_lat": 40.7829,
+    "drop_lon": -73.9654
+  }'
+```
+
+## 🔍 Monitor Containers
+
+```bash
+# View all containers
+curl http://localhost:8000/ride_containers
+
+# Check Docker
+docker ps | grep uber-ride
+
+# View logs
+docker logs uber-ride-1
+```
+
+## 🧹 Cleanup
+
+```bash
+# Stop all ride containers
+curl -X POST http://localhost:8000/cleanup_containers
+
+# Or manually
+docker stop $(docker ps -q --filter name=uber-ride)
+```
+
+## 🛠️ Troubleshooting
+
+| Issue | Solution |
+|-------|----------|
+| Container won't start | `docker logs uber-ride-{id}` |
+| Port in use | `./cleanup_containers` then retry |
+| Image not found | Run `./setup_containers.sh` |
+| Browser blocks port | Use ports 7000+ (avoid 6000-6063) |
+
+## 📁 Project Structure
+
+```
+uber_one_clone/
+├── server/app/
+│   ├── container_manager.py  # Container orchestration
+│   ├── main.py              # FastAPI app
+│   └── ...
+├── client/                   # Web UI
+├── docker-compose.yml
+├── setup_containers.sh       # Setup script
+└── spawn_test_rides.sh       # Test script
+```
+
+## 🗄️ Database
+
+**PostgreSQL** (port 5433):
+- `drivers` - Driver info with GPS
+- `ride_requests` - Ride details with coordinates
+
+## 🎯 What Makes This Special?
+
+✅ Each ride = isolated container  
+✅ Auto port allocation  
+✅ Individual logs per ride  
+✅ Easy cleanup  
+✅ Scalable architecture  
+
+---
+
+**Made with ❤️ for learning Docker & FastAPI**
