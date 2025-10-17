@@ -1,0 +1,146 @@
+/* Uber Design System */
+:root {
+  --uber-black: #000000;
+  --uber-white: #ffffff;
+  --uber-gray-50: #f6f6f6;
+  --uber-gray-100: #eeeeee;
+  --uber-gray-200: #e2e2e2;
+  --uber-gray-500: #9ca3af;
+  --uber-gray-900: #1f2937;
+  --uber-green: #00d4aa;
+  --uber-blue: #1fbad3;
+  --shadow: 0 2px 8px rgba(0,0,0,0.1);
+  --shadow-lg: 0 8px 25px rgba(0,0,0,0.15);
+}
+
+* {
+  margin: 0;
+  padding: 0;
+  box-sizing: border-box;
+}
+
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  background-color: var(--uber-gray-50);
+  color: var(--uber-gray-900);
+  line-height: 1.6;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.btn {
+  padding: 12px 24px;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 16px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.btn-primary {
+  background: var(--uber-black);
+  color: var(--uber-white);
+}
+
+.btn-primary:hover {
+  background: var(--uber-gray-900);
+  transform: translateY(-1px);
+}
+
+.btn-secondary {
+  background: var(--uber-gray-100);
+  color: var(--uber-black);
+}
+
+.btn-secondary:hover {
+  background: var(--uber-gray-200);
+}
+
+.card {
+  background: var(--uber-white);
+  border-radius: 12px;
+  padding: 24px;
+  box-shadow: var(--shadow);
+  border: 1px solid var(--uber-gray-100);
+}
+
+.input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 2px solid var(--uber-gray-200);
+  border-radius: 8px;
+  font-size: 16px;
+  transition: border-color 0.2s;
+}
+
+.input:focus {
+  outline: none;
+  border-color: var(--uber-black);
+}
+
+.header {
+  background: var(--uber-black);
+  color: var(--uber-white);
+  padding: 1rem 0;
+  box-shadow: var(--shadow);
+}
+
+.nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.nav-links {
+  display: flex;
+  gap: 1rem;
+}
+
+.nav-link {
+  color: var(--uber-white);
+  text-decoration: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.nav-link:hover {
+  background: rgba(255,255,255,0.1);
+}
+
+.grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.grid-2 {
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+}
+
+.grid-3 {
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+}
+
+@media (max-width: 768px) {
+  .container {
+    padding: 0 0.5rem;
+  }
+  
+  .nav {
+    flex-direction: column;
+    gap: 1rem;
+  }
+  
+  .nav-links {
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
