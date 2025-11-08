@@ -1,0 +1,68 @@
+version: '3.8'
+
+services:
+  # Load Balancer
+  nginx-lb:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx-lb.conf:/etc/nginx/conf.d/default.conf
+    depends_on:
+      - server
+
+  # Database with optimizations
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: SHER
+      POSTGRES_DB: uber_db
+      POSTGRES_SHARED_PRELOAD_LIBRARIES: pg_stat_statements
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    command: >
+      postgres
+      -c max_connections=200
+      -c shared_buffers=256MB
+      -c effective_cache_size=1GB
+      -c work_mem=4MB
+
+  # Redis for caching
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    command: >
+      redis-server
+      --maxmemory 512mb
+      --maxmemory-policy allkeys-lru
+      --appendonly yes
+    volumes:
+      - redis_data:/data
+
+  # Scalable API servers
+  server:
+    build: ./server
+    environment:
+      DATABASE_URL: postgresql://postgres:SHER@db:5432/uber_db
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      - db
+      - redis
+    deploy:
+      replicas: 3  # 3 server instances
+
+  # Scalable React UI
+  react-ui:
+    build: ./react-ui
+    environment:
+      - REACT_APP_API_URL=http://localhost/api
+    deploy:
+      replicas: 2  # 2 frontend instances
+
+volumes:
+  postgres_data:
+  redis_data:
