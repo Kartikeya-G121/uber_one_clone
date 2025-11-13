@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin, Navigation, Clock, Car } from 'lucide-react';
+import { MapPin, Navigation, Clock, Car, AlertTriangle } from 'lucide-react';
 import Header from '../components/common/Header';
 import { rideAPI } from '../services/api';
 
@@ -18,6 +18,7 @@ const RiderPage = () => {
   const [userRides, setUserRides] = useState([]);
   const [availableDrivers, setAvailableDrivers] = useState([]);
   const [loading, setLoading] = useState(false);
+  const [isEmergency, setIsEmergency] = useState(false);
 
   const handleInputChange = (e) => {
     setRideData({ ...rideData, [e.target.name]: e.target.value });
@@ -50,8 +51,21 @@ const RiderPage = () => {
 
     setLoading(true);
     try {
-      const response = await rideAPI.requestRideContainer(rideData);
-      setRideStatus(`🐳 Container Ride Created! Port: ${response.data.container_port}, URL: ${response.data.container_url}`);
+      const endpoint = isEmergency ? '/request_emergency_ride_container' : '/request_ride_container';
+      const ridePayload = { ...rideData, priority: isEmergency ? 'emergency' : 'normal' };
+      
+      const response = await rideAPI.requestRideContainer(ridePayload, endpoint);
+      
+      if (isEmergency) {
+        setRideStatus(`🚨 EMERGENCY Container Spawned!\n` +
+          `✅ Guaranteed by: ${response.data.guaranteed_by}\n` +
+          `💰 Surcharge: ${response.data.emergency_surcharge}\n` +
+          `🐳 Port: ${response.data.container_port}\n` +
+          `🖥️ Resources: ${response.data.container_resources}\n` +
+          `🌐 URL: ${response.data.container_url}`);
+      } else {
+        setRideStatus(`🐳 Container Ride Created! Port: ${response.data.container_port}, URL: ${response.data.container_url}`);
+      }
     } catch (error) {
       setRideStatus(`❌ Error: ${error.response?.data?.detail || error.message}`);
     }
@@ -182,20 +196,61 @@ const RiderPage = () => {
                 </div>
               </div>
               
+              {/* Emergency Toggle */}
+              <div style={{ 
+                padding: '1rem', 
+                background: isEmergency ? '#fff3cd' : '#f8f9fa', 
+                borderRadius: '8px',
+                border: isEmergency ? '2px solid #ff6b6b' : '2px solid #dee2e6',
+                display: 'flex',
+                alignItems: 'center',
+                gap: '1rem'
+              }}>
+                <input
+                  type="checkbox"
+                  id="emergency-toggle"
+                  checked={isEmergency}
+                  onChange={(e) => setIsEmergency(e.target.checked)}
+                  style={{ width: '20px', height: '20px', cursor: 'pointer' }}
+                />
+                <label htmlFor="emergency-toggle" style={{ 
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.5rem',
+                  margin: 0,
+                  fontWeight: isEmergency ? 'bold' : 'normal',
+                  color: isEmergency ? '#d32f2f' : '#333'
+                }}>
+                  <AlertTriangle size={20} color={isEmergency ? '#d32f2f' : '#666'} />
+                  🚨 Emergency Ride (5-min guarantee, +50% fare)
+                </label>
+              </div>
+              
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem' }}>
                 <button 
-                  className="btn btn-primary" 
+                  className={isEmergency ? "btn" : "btn btn-primary"}
+                  style={isEmergency ? {
+                    background: '#d32f2f',
+                    color: 'white',
+                    fontWeight: 'bold'
+                  } : {}}
                   onClick={requestRide}
                   disabled={loading}
                 >
-                  {loading ? 'Requesting...' : 'Request Ride'}
+                  {loading ? 'Requesting...' : isEmergency ? '🚨 Emergency Ride' : 'Request Ride'}
                 </button>
                 <button 
-                  className="btn btn-secondary" 
+                  className={isEmergency ? "btn" : "btn btn-secondary"}
+                  style={isEmergency ? {
+                    background: '#d32f2f',
+                    color: 'white',
+                    fontWeight: 'bold'
+                  } : {}}
                   onClick={requestRideContainer}
                   disabled={loading}
                 >
-                  🐳 Container Ride
+                  {isEmergency ? '🚨 Emergency Container' : '🐳 Container Ride'}
                 </button>
               </div>
               

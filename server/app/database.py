@@ -4,7 +4,7 @@ from sqlalchemy.orm import sessionmaker
 from sqlalchemy.pool import QueuePool
 import os
 
-DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:informat.7@db:5432/uber_db")
+DATABASE_URL = os.getenv("DATABASE_URL", "postgresql://postgres:SHER@db:5432/uber_db")
 
 # Optimized engine with connection pooling
 engine = create_engine(

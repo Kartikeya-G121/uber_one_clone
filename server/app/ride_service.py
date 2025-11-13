@@ -1,10 +1,52 @@
 import math
+import heapq
 from typing import List, Dict, Optional, Tuple
+from datetime import datetime
+from collections import deque
 
 class RideService:
     def __init__(self):
-        self.ride_queue: List[Dict] = []
+        self.emergency_queue: List[Tuple] = []  # Priority heap (timestamp, ride_data)
+        self.normal_queue: deque = deque()  # FIFO queue for normal rides
         self.available_drivers: List[Dict] = []
+    
+    def add_ride_to_queue(self, ride_data: Dict, priority: str = "normal"):
+        """Add ride to appropriate queue based on priority"""
+        if priority == "emergency":
+            # Add to priority heap (min heap by timestamp)
+            heapq.heappush(self.emergency_queue, (datetime.now(), ride_data))
+        else:
+            # Add to normal FIFO queue
+            self.normal_queue.append(ride_data)
+    
+    def get_next_ride(self) -> Optional[Dict]:
+        """Get next ride from queue, prioritizing emergency rides"""
+        if self.emergency_queue:
+            _, ride_data = heapq.heappop(self.emergency_queue)
+            return ride_data
+        elif self.normal_queue:
+            return self.normal_queue.popleft()
+        return None
+    
+    def get_queue_status(self) -> Dict:
+        """Get current queue statistics"""
+        return {
+            "emergency_count": len(self.emergency_queue),
+            "normal_count": len(self.normal_queue),
+            "total_rides": len(self.emergency_queue) + len(self.normal_queue),
+            "available_drivers": len(self.available_drivers)
+        }
+    
+    @property
+    def ride_queue(self):
+        """Backward compatibility - returns combined queue"""
+        combined = []
+        # Emergency rides first
+        for _, ride in sorted(self.emergency_queue):
+            combined.append(ride)
+        # Then normal rides
+        combined.extend(list(self.normal_queue))
+        return combined
     
     def haversine_distance(self, lat1: float, lon1: float, lat2: float, lon2: float) -> float:
         """Calculate distance between two points using Haversine formula"""
@@ -21,11 +63,15 @@ class RideService:
         return R * c
     
     def assign_driver(self) -> Optional[Dict]:
-        """Assign nearest driver to oldest ride request"""
-        if not self.ride_queue or not self.available_drivers:
+        """Assign nearest driver to next ride request (prioritizing emergency rides)"""
+        if not self.available_drivers:
             return None
         
-        request = self.ride_queue.pop(0)
+        # Get next ride from priority queue
+        request = self.get_next_ride()
+        if not request:
+            return None
+        
         pickup_lat, pickup_lon = request["pickup"]
         
         # Find nearest driver

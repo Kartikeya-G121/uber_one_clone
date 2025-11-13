@@ -2,9 +2,13 @@ FROM python:3.11-slim
 
 WORKDIR /app
 
-# Install Docker CLI
+# Install Docker CLI and build dependencies for psycopg2
 RUN apt-get update && \
-    apt-get install -y docker.io && \
+    apt-get install -y \
+    docker.io \
+    gcc \
+    python3-dev \
+    libpq-dev && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .

@@ -1,6 +1,11 @@
 from pydantic import BaseModel
 from datetime import datetime
 from typing import Optional, List
+from enum import Enum
+
+class RidePriority(str, Enum):
+    NORMAL = "normal"
+    EMERGENCY = "emergency"
 
 class DriverCreate(BaseModel):
     name: str
@@ -28,6 +33,7 @@ class RideRequestCreate(BaseModel):
     pickup_lon: float
     drop_lat: float
     drop_lon: float
+    priority: RidePriority = RidePriority.NORMAL
 
 class RideRequest(BaseModel):
     id: int
@@ -39,6 +45,10 @@ class RideRequest(BaseModel):
     drop_lat: float
     drop_lon: float
     created_at: datetime
+    priority: RidePriority
+    emergency_requested_at: Optional[datetime] = None
+    guaranteed_by: Optional[datetime] = None
+    emergency_surcharge: float = 0.0
     
     class Config:
         from_attributes = True

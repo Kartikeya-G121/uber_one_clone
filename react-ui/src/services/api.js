@@ -12,7 +12,9 @@ const api = axios.create({
 export const rideAPI = {
   // Ride operations
   requestRide: (rideData) => api.post('/request_ride', rideData),
-  requestRideContainer: (rideData) => api.post('/request_ride_container', rideData),
+  requestRideContainer: (rideData, endpoint = '/request_ride_container') => api.post(endpoint, rideData),
+  requestEmergencyRide: (rideData) => api.post('/request_emergency_ride', rideData),
+  requestEmergencyRideContainer: (rideData) => api.post('/request_emergency_ride_container', rideData),
   getUserRides: (userId) => api.get(`/rides/${userId}`),
   addToQueue: (rideData) => api.post('/add_to_queue', rideData),
   
@@ -29,6 +31,7 @@ export const rideAPI = {
   assignDriver: () => api.post('/assign_driver'),
   completeRide: (driverId) => api.post(`/complete_ride/${driverId}`),
   getQueueStatus: () => api.get('/queue_status'),
+  getEmergencyQueueStatus: () => api.get('/emergency_queue_status'),
   
   // Container operations
   getRideContainers: () => api.get('/ride_containers'),

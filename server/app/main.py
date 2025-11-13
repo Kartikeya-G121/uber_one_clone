@@ -2,6 +2,7 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Dict
+from datetime import datetime, timedelta
 from . import crud, models, schemas
 from .database import SessionLocal, engine, get_db
 from .ride_service import ride_service
@@ -59,13 +60,21 @@ def assign_driver(db: Session = Depends(get_db)):
 
 @app.post("/add_to_queue")
 def add_to_queue(ride: schemas.RideRequestCreate):
+    """Add ride to queue (supports priority)"""
+    priority = ride.priority.value if hasattr(ride, 'priority') else "normal"
     ride_data = {
         "id": len(ride_service.ride_queue) + 1,
         "pickup": (ride.pickup_lat, ride.pickup_lon),
-        "destination": (ride.drop_lat, ride.drop_lon)
+        "destination": (ride.drop_lat, ride.drop_lon),
+        "priority": priority
     }
-    ride_service.ride_queue.append(ride_data)
-    return {"message": "Ride added to queue", "queue_position": len(ride_service.ride_queue)}
+    ride_service.add_ride_to_queue(ride_data, priority)
+    queue_status = ride_service.get_queue_status()
+    
+    return {
+        "message": f"Ride added to {priority} queue",
+        "queue_status": queue_status
+    }
 
 @app.post("/add_driver_location")
 def add_driver_location(driver_id: int, latitude: float, longitude: float):
@@ -78,10 +87,141 @@ def add_driver_location(driver_id: int, latitude: float, longitude: float):
 
 @app.get("/queue_status")
 def get_queue_status():
-    return {
-        "rides_in_queue": len(ride_service.ride_queue),
-        "available_drivers": len(ride_service.available_drivers)
+    """Get detailed queue status including emergency and normal counts"""
+    return ride_service.get_queue_status()
+
+@app.get("/emergency_queue_status")
+def get_emergency_queue_status():
+    """Get status of emergency vs normal queues"""
+    return ride_service.get_queue_status()
+
+@app.post("/request_emergency_ride", response_model=dict)
+def request_emergency_ride(ride: schemas.RideRequestCreate, db: Session = Depends(get_db)):
+    """
+    Request an emergency ride with 5-minute guarantee and priority handling.
+    Emergency rides get:
+    - Priority in queue
+    - More container resources
+    - 5-minute guarantee
+    - 50% surcharge
+    """
+    # Force priority to emergency
+    ride.priority = schemas.RidePriority.EMERGENCY
+    
+    # Create ride in database with emergency fields
+    now = datetime.now()
+    guaranteed_time = now + timedelta(minutes=5)
+    
+    db_ride = models.RideRequest(
+        user_id=ride.user_id,
+        pickup_location=ride.pickup_location,
+        drop_location=ride.drop_location,
+        pickup_lat=ride.pickup_lat,
+        pickup_lon=ride.pickup_lon,
+        drop_lat=ride.drop_lat,
+        drop_lon=ride.drop_lon,
+        priority=models.RidePriority.EMERGENCY,
+        emergency_requested_at=now,
+        guaranteed_by=guaranteed_time,
+        emergency_surcharge=1.5  # 50% surcharge (1.5x base fare)
+    )
+    db.add(db_ride)
+    db.commit()
+    db.refresh(db_ride)
+    
+    # Add to emergency queue
+    ride_data = {
+        "id": db_ride.id,
+        "pickup": (ride.pickup_lat, ride.pickup_lon),
+        "destination": (ride.drop_lat, ride.drop_lon),
+        "priority": "emergency"
     }
+    ride_service.add_ride_to_queue(ride_data, "emergency")
+    
+    # Try to assign driver immediately if available
+    assignment = None
+    if ride_service.available_drivers:
+        assignment = ride_service.assign_driver()
+    
+    queue_status = ride_service.get_queue_status()
+    
+    return {
+        "success": True,
+        "ride_id": db_ride.id,
+        "priority": "EMERGENCY",
+        "guaranteed_by": guaranteed_time.strftime("%I:%M %p"),
+        "guaranteed_by_iso": guaranteed_time.isoformat(),
+        "emergency_surcharge": "50%",
+        "surcharge_multiplier": 1.5,
+        "assignment": assignment,
+        "queue_status": queue_status,
+        "message": f"🚨 Emergency ride confirmed! Guaranteed pickup by {guaranteed_time.strftime('%I:%M %p')}"
+    }
+
+@app.post("/request_emergency_ride_container", response_model=dict)
+def request_emergency_ride_with_container(ride: schemas.RideRequestCreate, db: Session = Depends(get_db)):
+    """
+    Request an emergency ride with dedicated container and priority handling.
+    This spawns a high-priority container with more resources.
+    """
+    # Force priority to emergency
+    ride.priority = schemas.RidePriority.EMERGENCY
+    
+    # Create ride in database with emergency fields
+    now = datetime.now()
+    guaranteed_time = now + timedelta(minutes=5)
+    
+    db_ride = models.RideRequest(
+        user_id=ride.user_id,
+        pickup_location=ride.pickup_location,
+        drop_location=ride.drop_location,
+        pickup_lat=ride.pickup_lat,
+        pickup_lon=ride.pickup_lon,
+        drop_lat=ride.drop_lat,
+        drop_lon=ride.drop_lon,
+        priority=models.RidePriority.EMERGENCY,
+        emergency_requested_at=now,
+        guaranteed_by=guaranteed_time,
+        emergency_surcharge=1.5
+    )
+    db.add(db_ride)
+    db.commit()
+    db.refresh(db_ride)
+    
+    # Prepare ride data for the container
+    ride_data = {
+        'id': db_ride.id,
+        'user_id': db_ride.user_id,
+        'pickup_location': db_ride.pickup_location,
+        'drop_location': db_ride.drop_location,
+        'pickup_lat': db_ride.pickup_lat,
+        'pickup_lon': db_ride.pickup_lon,
+        'drop_lat': db_ride.drop_lat,
+        'drop_lon': db_ride.drop_lon,
+        'created_at': db_ride.created_at.isoformat(),
+        'priority': 'emergency'
+    }
+    
+    try:
+        # Spawn emergency container with priority resources
+        container_info = container_manager.spawn_ride_container(db_ride.id, ride_data, priority="emergency")
+        
+        return {
+            'success': True,
+            'ride_id': db_ride.id,
+            'priority': 'EMERGENCY',
+            'guaranteed_by': guaranteed_time.strftime("%I:%M %p"),
+            'guaranteed_by_iso': guaranteed_time.isoformat(),
+            'emergency_surcharge': '50%',
+            'surcharge_multiplier': 1.5,
+            'container_port': container_info['host_port'],
+            'container_url': container_info['url'],
+            'container_id': container_info['container_id'][:12],
+            'container_resources': '1.0 CPUs, 512MB RAM',
+            'message': f"🚨 Emergency ride container spawned! Guaranteed pickup by {guaranteed_time.strftime('%I:%M %p')}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to spawn emergency container: {str(e)}")
 
 @app.get("/driver/{driver_id}", response_model=schemas.Driver)
 def get_driver(driver_id: int, db: Session = Depends(get_db)):
@@ -120,7 +260,8 @@ def root():
 def request_ride_with_container(ride: schemas.RideRequestCreate, db: Session = Depends(get_db)):
     """
     Create a ride request and spawn a dedicated Docker container for it.
-    Each ride runs in its own container on a unique port (6000, 6001, 6002, ...)
+    Each ride runs in its own container on a unique port (7000, 7001, 7002, ...)
+    Supports both normal and emergency priorities.
     """
     # First, create the ride in the database
     db_ride = crud.create_ride_request(db=db, ride=ride)
@@ -138,13 +279,17 @@ def request_ride_with_container(ride: schemas.RideRequestCreate, db: Session = D
         'created_at': db_ride.created_at.isoformat()
     }
     
+    # Get priority (default to normal if not specified)
+    priority = ride.priority.value if hasattr(ride, 'priority') and ride.priority else "normal"
+    
     try:
-        # Spawn a new container for this ride
-        container_info = container_manager.spawn_ride_container(db_ride.id, ride_data)
+        # Spawn a new container for this ride with appropriate priority
+        container_info = container_manager.spawn_ride_container(db_ride.id, ride_data, priority=priority)
         
         # Return the ride info with container details
         return {
             **ride_data,
+            'priority': priority.upper(),
             'container_port': container_info['host_port'],
             'container_url': container_info['url'],
             'container_id': container_info['container_id'][:12]
