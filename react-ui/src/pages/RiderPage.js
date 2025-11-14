@@ -52,7 +52,7 @@ const RiderPage = () => {
     setLoading(true);
     try {
       const endpoint = isEmergency ? '/request_emergency_ride_container' : '/request_ride_container';
-      const ridePayload = { ...rideData, priority: isEmergency ? 'emergency' : 'normal' };
+      const ridePayload = { ...rideData, priority: isEmergency ? 'EMERGENCY' : 'NORMAL' };
       
       const response = await rideAPI.requestRideContainer(ridePayload, endpoint);
       

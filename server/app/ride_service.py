@@ -1,8 +1,13 @@
 import math
 import heapq
+import logging
 from typing import List, Dict, Optional, Tuple
 from datetime import datetime
 from collections import deque
+
+# Configure logging
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 class RideService:
     def __init__(self):
@@ -10,13 +15,18 @@ class RideService:
         self.normal_queue: deque = deque()  # FIFO queue for normal rides
         self.available_drivers: List[Dict] = []
     
-    def add_ride_to_queue(self, ride_data: Dict, priority: str = "normal"):
+    def add_ride_to_queue(self, ride_data: Dict, priority: str = "NORMAL"):
         """Add ride to appropriate queue based on priority"""
-        if priority == "emergency":
+        priority_str = str(priority).upper()
+        logger.info(f"add_ride_to_queue called with priority={priority!r}, priority_str={priority_str!r}")
+        logger.info(f"Check: 'EMERGENCY' in priority_str = {'EMERGENCY' in priority_str}")
+        if "EMERGENCY" in priority_str:
             # Add to priority heap (min heap by timestamp)
+            logger.info("Adding to EMERGENCY queue")
             heapq.heappush(self.emergency_queue, (datetime.now(), ride_data))
         else:
             # Add to normal FIFO queue
+            logger.info("Adding to NORMAL queue")
             self.normal_queue.append(ride_data)
     
     def get_next_ride(self) -> Optional[Dict]:
@@ -30,10 +40,12 @@ class RideService:
     
     def get_queue_status(self) -> Dict:
         """Get current queue statistics"""
+        total = len(self.emergency_queue) + len(self.normal_queue)
         return {
             "emergency_count": len(self.emergency_queue),
             "normal_count": len(self.normal_queue),
-            "total_rides": len(self.emergency_queue) + len(self.normal_queue),
+            "total_rides": total,
+            "rides_in_queue": total,  # Backward compatibility
             "available_drivers": len(self.available_drivers)
         }
     

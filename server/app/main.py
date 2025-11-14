@@ -48,6 +48,19 @@ def register_drivers_bulk(bulk_data: schemas.BulkDriverCreate, db: Session = Dep
 
 @app.post("/assign_driver")
 def assign_driver(db: Session = Depends(get_db)):
+    # If no drivers in the queue system, try to load from database
+    if not ride_service.available_drivers:
+        available_drivers_db = crud.get_available_drivers(db)
+        for driver in available_drivers_db:
+            # Use driver location if available, otherwise use default location
+            lat = driver.latitude if driver.latitude else 40.7128
+            lon = driver.longitude if driver.longitude else -74.0060
+            driver_data = {
+                "id": driver.id,
+                "location": (lat, lon)
+            }
+            ride_service.available_drivers.append(driver_data)
+    
     assignment = ride_service.assign_driver()
     if assignment is None:
         raise HTTPException(status_code=404, detail="No rides or drivers available")
@@ -61,18 +74,20 @@ def assign_driver(db: Session = Depends(get_db)):
 @app.post("/add_to_queue")
 def add_to_queue(ride: schemas.RideRequestCreate):
     """Add ride to queue (supports priority)"""
-    priority = ride.priority.value if hasattr(ride, 'priority') else "normal"
+    priority_val = ride.priority if ride.priority else schemas.RidePriority.NORMAL
+    priority_str = priority_val.value if hasattr(priority_val, 'value') else str(priority_val)
+    
     ride_data = {
         "id": len(ride_service.ride_queue) + 1,
         "pickup": (ride.pickup_lat, ride.pickup_lon),
         "destination": (ride.drop_lat, ride.drop_lon),
-        "priority": priority
+        "priority": priority_str
     }
-    ride_service.add_ride_to_queue(ride_data, priority)
+    ride_service.add_ride_to_queue(ride_data, priority_str)
     queue_status = ride_service.get_queue_status()
     
     return {
-        "message": f"Ride added to {priority} queue",
+        "message": f"Ride added to {priority_str} queue",
         "queue_status": queue_status
     }
 

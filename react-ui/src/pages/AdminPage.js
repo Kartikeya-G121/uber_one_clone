@@ -75,7 +75,9 @@ const AdminPage = () => {
           
           <div className="card" style={{ textAlign: 'center' }}>
             <BarChart3 size={32} style={{ margin: '0 auto 1rem', color: '#000' }} />
-            <h3 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>{queueStatus.rides_in_queue || 0}</h3>
+            <h3 style={{ fontSize: '2rem', marginBottom: '0.5rem' }}>
+              {queueStatus.total_rides || queueStatus.rides_in_queue || 0}
+            </h3>
             <p style={{ color: '#666' }}>Rides in Queue</p>
           </div>
           

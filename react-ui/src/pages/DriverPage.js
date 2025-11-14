@@ -61,11 +61,14 @@ const DriverPage = () => {
     try {
       const response = await rideAPI.getQueueStatus();
       const data = response.data;
+      const ridesCount = data.total_rides || data.rides_in_queue || 0;
       setRideManagement(`
         📊 Current Status:
-        🚗 Rides in Queue: ${data.rides_in_queue}
+        🚗 Rides in Queue: ${ridesCount}
+        🚨 Emergency: ${data.emergency_count || 0}
+        📋 Normal: ${data.normal_count || 0}
         👥 Available Drivers: ${data.available_drivers}
-        ${data.rides_in_queue > 0 ? '🔔 Rides available for pickup!' : '😴 No rides pending'}
+        ${ridesCount > 0 ? '🔔 Rides available for pickup!' : '😴 No rides pending'}
       `);
     } catch (error) {
       setRideManagement(`❌ Error: ${error.response?.data?.detail || error.message}`);
