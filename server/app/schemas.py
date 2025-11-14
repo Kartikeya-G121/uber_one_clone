@@ -4,8 +4,8 @@ from typing import Optional, List
 from enum import Enum
 
 class RidePriority(str, Enum):
-    NORMAL = "normal"
-    EMERGENCY = "emergency"
+    NORMAL = "NORMAL"
+    EMERGENCY = "EMERGENCY"
 
 class DriverCreate(BaseModel):
     name: str

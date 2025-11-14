@@ -4,8 +4,8 @@ from .database import Base
 import enum
 
 class RidePriority(enum.Enum):
-    NORMAL = "normal"
-    EMERGENCY = "emergency"
+    NORMAL = "NORMAL"
+    EMERGENCY = "EMERGENCY"
 
 class Driver(Base):
     __tablename__ = "drivers"
@@ -29,7 +29,7 @@ class RideRequest(Base):
     drop_lat = Column(Float, nullable=False)
     drop_lon = Column(Float, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
-    priority = Column(SQLEnum(RidePriority), default=RidePriority.NORMAL, nullable=False)
+    priority = Column(SQLEnum(RidePriority, values_callable=lambda x: [e.value for e in x]), default=RidePriority.NORMAL, nullable=False)
     emergency_requested_at = Column(DateTime, nullable=True)
     guaranteed_by = Column(DateTime, nullable=True)
     emergency_surcharge = Column(Float, default=0.0)
