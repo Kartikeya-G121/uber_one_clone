@@ -19,6 +19,7 @@ const DriverPage = () => {
   const [locationResult, setLocationResult] = useState('');
   const [rideManagement, setRideManagement] = useState('');
   const [allDrivers, setAllDrivers] = useState([]);
+  const [activeRides, setActiveRides] = useState([]);
   const [loading, setLoading] = useState(false);
 
   const registerDriver = async () => {
@@ -100,11 +101,40 @@ const DriverPage = () => {
     }
   };
 
+  const getActiveRides = async () => {
+    if (!locationData.driver_id) return;
+    
+    try {
+      const response = await rideAPI.getDriverActiveRides(locationData.driver_id);
+      setActiveRides(response.data);
+    } catch (error) {
+      console.error('Error fetching active rides:', error);
+    }
+  };
+
+  const endRide = async (rideId) => {
+    try {
+      await rideAPI.endRide(rideId);
+      setRideManagement(`✅ Ride ${rideId} completed successfully!`);
+      getActiveRides();
+    } catch (error) {
+      setRideManagement(`❌ Error ending ride: ${error.response?.data?.detail || error.message}`);
+    }
+  };
+
   useEffect(() => {
     viewAllDrivers();
     const interval = setInterval(checkForRides, 15000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (locationData.driver_id) {
+      getActiveRides();
+      const interval = setInterval(getActiveRides, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [locationData.driver_id]);
 
   return (
     <div>
@@ -245,6 +275,60 @@ const DriverPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Active Rides */}
+        {activeRides.length > 0 && (
+          <div className="card" style={{ marginTop: '2rem' }}>
+            <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Activity size={20} />
+              Your Active Rides ({activeRides.length})
+            </h3>
+            <div className="grid grid-2">
+              {activeRides.map(ride => (
+                <div key={ride.id} style={{ 
+                  padding: '1rem', 
+                  background: ride.priority === 'EMERGENCY' ? '#fff3cd' : '#f8f9fa', 
+                  borderRadius: '8px',
+                  border: ride.priority === 'EMERGENCY' ? '2px solid #ff6b6b' : '2px solid #28a745'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                    <strong>Ride #{ride.id}</strong>
+                    {ride.priority === 'EMERGENCY' && (
+                      <span style={{ 
+                        background: '#dc3545', 
+                        color: 'white', 
+                        padding: '0.25rem 0.75rem', 
+                        borderRadius: '12px', 
+                        fontSize: '0.8rem',
+                        fontWeight: 'bold'
+                      }}>
+                        🚨 EMERGENCY
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', marginBottom: '1rem' }}>
+                    👤 User ID: {ride.user_id}<br />
+                    📍 From: {ride.pickup_location}<br />
+                    🎯 To: {ride.drop_location}<br />
+                    📊 Status: {ride.status}<br />
+                    🕐 Assigned: {ride.assigned_at ? new Date(ride.assigned_at).toLocaleTimeString() : 'N/A'}
+                  </div>
+                  <button 
+                    className="btn btn-primary" 
+                    style={{ 
+                      width: '100%',
+                      background: '#28a745',
+                      borderColor: '#28a745'
+                    }}
+                    onClick={() => endRide(ride.id)}
+                  >
+                    Complete Ride
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* All Drivers */}
         <div className="card" style={{ marginTop: '2rem' }}>

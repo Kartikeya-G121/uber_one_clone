@@ -30,7 +30,11 @@ export const rideAPI = {
   // Assignment operations
   assignDriver: () => api.post('/assign_driver'),
   completeRide: (driverId) => api.post(`/complete_ride/${driverId}`),
+  endRide: (rideId) => api.post(`/end_ride/${rideId}`),
+  getDriverActiveRides: (driverId) => api.get(`/active_rides/driver/${driverId}`),
+  getUserActiveRides: (userId) => api.get(`/active_rides/user/${userId}`),
   getQueueStatus: () => api.get('/queue_status'),
+  getQueueDetails: () => api.get('/queue_details'),
   getEmergencyQueueStatus: () => api.get('/emergency_queue_status'),
   
   // Container operations

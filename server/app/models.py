@@ -33,3 +33,7 @@ class RideRequest(Base):
     emergency_requested_at = Column(DateTime, nullable=True)
     guaranteed_by = Column(DateTime, nullable=True)
     emergency_surcharge = Column(Float, default=0.0)
+    status = Column(String, default="pending")  # pending, in_progress, completed, cancelled
+    driver_id = Column(Integer, nullable=True)
+    assigned_at = Column(DateTime, nullable=True)
+    completed_at = Column(DateTime, nullable=True)

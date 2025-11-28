@@ -16,6 +16,7 @@ const RiderPage = () => {
   });
   const [rideStatus, setRideStatus] = useState('');
   const [userRides, setUserRides] = useState([]);
+  const [activeRides, setActiveRides] = useState([]);
   const [availableDrivers, setAvailableDrivers] = useState([]);
   const [loading, setLoading] = useState(false);
   const [isEmergency, setIsEmergency] = useState(false);
@@ -35,8 +36,9 @@ const RiderPage = () => {
       const response = await rideAPI.requestRide(rideData);
       setRideStatus(`✅ Ride Requested Successfully! Ride ID: ${response.data.id}`);
       
-      // Auto add to queue
-      await rideAPI.addToQueue(rideData);
+      // Auto add to queue with priority
+      const queuePayload = { ...rideData, priority: isEmergency ? 'EMERGENCY' : 'NORMAL' };
+      await rideAPI.addToQueue(queuePayload);
     } catch (error) {
       setRideStatus(`❌ Error: ${error.response?.data?.detail || error.message}`);
     }
@@ -86,6 +88,28 @@ const RiderPage = () => {
     }
   };
 
+  const getActiveRides = async () => {
+    if (!rideData.user_id) return;
+    
+    try {
+      const response = await rideAPI.getUserActiveRides(rideData.user_id);
+      setActiveRides(response.data);
+    } catch (error) {
+      console.error('Error fetching active rides:', error);
+    }
+  };
+
+  const endRide = async (rideId) => {
+    try {
+      await rideAPI.endRide(rideId);
+      setRideStatus(`✅ Ride ${rideId} ended successfully!`);
+      getActiveRides();
+      getUserRides();
+    } catch (error) {
+      setRideStatus(`❌ Error ending ride: ${error.response?.data?.detail || error.message}`);
+    }
+  };
+
   const getAvailableDrivers = async () => {
     try {
       const response = await rideAPI.getAvailableDrivers();
@@ -100,6 +124,14 @@ const RiderPage = () => {
     const interval = setInterval(getAvailableDrivers, 30000);
     return () => clearInterval(interval);
   }, []);
+
+  useEffect(() => {
+    if (rideData.user_id) {
+      getActiveRides();
+      const interval = setInterval(getActiveRides, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [rideData.user_id]);
 
   return (
     <div>
@@ -298,6 +330,60 @@ const RiderPage = () => {
             </div>
           </div>
         </div>
+
+        {/* Active Rides */}
+        {activeRides.length > 0 && (
+          <div className="card" style={{ marginTop: '2rem' }}>
+            <h3 style={{ marginBottom: '1rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+              <Navigation size={20} />
+              Active Rides ({activeRides.length})
+            </h3>
+            <div className="grid grid-2">
+              {activeRides.map(ride => (
+                <div key={ride.id} style={{ 
+                  padding: '1rem', 
+                  background: ride.priority === 'EMERGENCY' ? '#fff3cd' : '#f8f9fa', 
+                  borderRadius: '8px',
+                  border: ride.priority === 'EMERGENCY' ? '2px solid #ff6b6b' : '2px solid #dee2e6'
+                }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '0.5rem' }}>
+                    <strong>Ride #{ride.id}</strong>
+                    {ride.priority === 'EMERGENCY' && (
+                      <span style={{ 
+                        background: '#dc3545', 
+                        color: 'white', 
+                        padding: '0.25rem 0.75rem', 
+                        borderRadius: '12px', 
+                        fontSize: '0.8rem',
+                        fontWeight: 'bold'
+                      }}>
+                        🚨 EMERGENCY
+                      </span>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '0.9rem', marginBottom: '1rem' }}>
+                    📍 From: {ride.pickup_location}<br />
+                    🎯 To: {ride.drop_location}<br />
+                    📊 Status: {ride.status}<br />
+                    {ride.driver_id && <span>👤 Driver ID: {ride.driver_id}<br /></span>}
+                    🕐 Started: {ride.assigned_at ? new Date(ride.assigned_at).toLocaleTimeString() : new Date(ride.created_at).toLocaleTimeString()}
+                  </div>
+                  <button 
+                    className="btn btn-primary" 
+                    style={{ 
+                      width: '100%',
+                      background: '#dc3545',
+                      borderColor: '#dc3545'
+                    }}
+                    onClick={() => endRide(ride.id)}
+                  >
+                    End Ride
+                  </button>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
 
         {/* Ride History */}
         <div className="card" style={{ marginTop: '2rem' }}>

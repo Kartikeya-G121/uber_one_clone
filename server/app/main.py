@@ -69,16 +69,28 @@ def assign_driver(db: Session = Depends(get_db)):
     driver_id = assignment["driver"]["id"]
     crud.update_driver_status(db, driver_id, "busy")
     
+    # Track ride assignment in database
+    ride_id = assignment["request"]["id"]
+    crud.assign_ride_to_driver(db, ride_id, driver_id)
+    
     return assignment
 
 @app.post("/add_to_queue")
-def add_to_queue(ride: schemas.RideRequestCreate):
+def add_to_queue(ride: schemas.RideRequestCreate, db: Session = Depends(get_db)):
     """Add ride to queue (supports priority)"""
     priority_val = ride.priority if ride.priority else schemas.RidePriority.NORMAL
     priority_str = priority_val.value if hasattr(priority_val, 'value') else str(priority_val)
     
+    # Get the most recent ride for this user from database
+    db_ride = db.query(models.RideRequest).filter(
+        models.RideRequest.user_id == ride.user_id
+    ).order_by(models.RideRequest.created_at.desc()).first()
+    
+    ride_id = db_ride.id if db_ride else len(ride_service.ride_queue) + 1
+    
     ride_data = {
-        "id": len(ride_service.ride_queue) + 1,
+        "id": ride_id,
+        "user_id": ride.user_id,
         "pickup": (ride.pickup_lat, ride.pickup_lon),
         "destination": (ride.drop_lat, ride.drop_lon),
         "priority": priority_str
@@ -88,17 +100,33 @@ def add_to_queue(ride: schemas.RideRequestCreate):
     
     return {
         "message": f"Ride added to {priority_str} queue",
-        "queue_status": queue_status
+        "queue_status": queue_status,
+        "ride_id": ride_id
     }
 
 @app.post("/add_driver_location")
-def add_driver_location(driver_id: int, latitude: float, longitude: float):
+def add_driver_location(driver_id: int, latitude: float, longitude: float, db: Session = Depends(get_db)):
+    """Update driver's location in the database and add to available pool"""
+    driver = crud.update_driver_location(db, driver_id, latitude, longitude)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    
+    # Add driver to in-memory available pool for ride assignment
     driver_data = {
         "id": driver_id,
         "location": (latitude, longitude)
     }
+    # Remove old entry if exists
+    ride_service.available_drivers = [d for d in ride_service.available_drivers if d["id"] != driver_id]
+    # Add updated entry
     ride_service.available_drivers.append(driver_data)
-    return {"message": "Driver added to available pool"}
+    
+    return {
+        "message": "Driver location updated successfully",
+        "driver_id": driver.id,
+        "latitude": driver.latitude,
+        "longitude": driver.longitude
+    }
 
 @app.get("/queue_status")
 def get_queue_status():
@@ -109,6 +137,42 @@ def get_queue_status():
 def get_emergency_queue_status():
     """Get status of emergency vs normal queues"""
     return ride_service.get_queue_status()
+
+@app.get("/queue_details")
+def get_queue_details():
+    """Get detailed list of rides in queue"""
+    emergency_rides = []
+    normal_rides = []
+    
+    # Get emergency rides
+    for timestamp, ride in sorted(ride_service.emergency_queue):
+        emergency_rides.append({
+            "id": ride.get("id"),
+            "user_id": ride.get("user_id"),
+            "pickup": ride.get("pickup"),
+            "destination": ride.get("destination"),
+            "priority": "EMERGENCY",
+            "queued_at": timestamp.isoformat()
+        })
+    
+    # Get normal rides
+    for ride in ride_service.normal_queue:
+        normal_rides.append({
+            "id": ride.get("id"),
+            "user_id": ride.get("user_id"),
+            "pickup": ride.get("pickup"),
+            "destination": ride.get("destination"),
+            "priority": "NORMAL",
+            "queued_at": None  # Normal queue doesn't store timestamp
+        })
+    
+    return {
+        "emergency_rides": emergency_rides,
+        "normal_rides": normal_rides,
+        "total_emergency": len(emergency_rides),
+        "total_normal": len(normal_rides),
+        "total_rides": len(emergency_rides) + len(normal_rides)
+    }
 
 @app.post("/request_emergency_ride", response_model=dict)
 def request_emergency_ride(ride: schemas.RideRequestCreate, db: Session = Depends(get_db)):
@@ -261,6 +325,67 @@ def complete_ride(driver_id: int, db: Session = Depends(get_db)):
             "status": driver.status
         }
     }
+
+@app.post("/end_ride/{ride_id}")
+def end_ride(ride_id: int, db: Session = Depends(get_db)):
+    """End a ride and mark it as completed"""
+    ride = crud.complete_ride(db, ride_id)
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    
+    # Make driver available again and update location to drop location if assigned
+    if ride.driver_id:
+        crud.update_driver_status(db, ride.driver_id, "available")
+        # Update driver's location to the drop location (end of ride)
+        crud.update_driver_location(db, ride.driver_id, ride.drop_lat, ride.drop_lon)
+    
+    return {
+        "message": f"Ride {ride_id} completed successfully",
+        "ride": {
+            "id": ride.id,
+            "status": ride.status,
+            "user_id": ride.user_id,
+            "driver_id": ride.driver_id,
+            "completed_at": ride.completed_at.isoformat() if ride.completed_at else None,
+            "drop_location": ride.drop_location,
+            "drop_coordinates": {"lat": ride.drop_lat, "lon": ride.drop_lon}
+        }
+    }
+
+@app.get("/active_rides/driver/{driver_id}")
+def get_driver_active_rides(driver_id: int, db: Session = Depends(get_db)):
+    """Get all active rides for a specific driver"""
+    rides = crud.get_active_rides_by_driver(db, driver_id)
+    return [
+        {
+            "id": ride.id,
+            "user_id": ride.user_id,
+            "pickup_location": ride.pickup_location,
+            "drop_location": ride.drop_location,
+            "status": ride.status,
+            "priority": ride.priority.value if ride.priority else "NORMAL",
+            "assigned_at": ride.assigned_at.isoformat() if ride.assigned_at else None
+        }
+        for ride in rides
+    ]
+
+@app.get("/active_rides/user/{user_id}")
+def get_user_active_rides(user_id: int, db: Session = Depends(get_db)):
+    """Get all active rides for a specific user"""
+    rides = crud.get_active_rides_by_user(db, user_id)
+    return [
+        {
+            "id": ride.id,
+            "driver_id": ride.driver_id,
+            "pickup_location": ride.pickup_location,
+            "drop_location": ride.drop_location,
+            "status": ride.status,
+            "priority": ride.priority.value if ride.priority else "NORMAL",
+            "created_at": ride.created_at.isoformat() if ride.created_at else None,
+            "assigned_at": ride.assigned_at.isoformat() if ride.assigned_at else None
+        }
+        for ride in rides
+    ]
 
 @app.get("/")
 def root():
