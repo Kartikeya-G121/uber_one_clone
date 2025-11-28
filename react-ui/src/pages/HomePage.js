@@ -15,7 +15,7 @@ const HomePage = () => {
       <div className="container" style={{ textAlign: 'center', maxWidth: '600px' }}>
         <div style={{ fontSize: '4rem', marginBottom: '1rem' }}>🚗</div>
         <h1 style={{ fontSize: '3rem', marginBottom: '0.5rem', fontWeight: '700' }}>
-          Uber Clone
+          Uber Quick
         </h1>
         <p style={{ fontSize: '1.2rem', marginBottom: '3rem', opacity: 0.9 }}>
           Choose your role to get started

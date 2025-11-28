@@ -74,7 +74,7 @@ const AdminPage = () => {
 
   return (
     <div>
-      <Header title="🔧 Uber Admin Panel" />
+      <Header title="🔧 Uber Quick Admin Panel" />
 
       <div className="container" style={{ padding: '2rem 1rem' }}>
         {/* Stats Overview */}

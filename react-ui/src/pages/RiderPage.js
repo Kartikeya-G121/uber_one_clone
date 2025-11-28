@@ -135,7 +135,7 @@ const RiderPage = () => {
 
   return (
     <div>
-      <Header title="🚗 Uber Rider">
+      <Header title="🚗 Uber Quick Rider">
         <Link to="/driver" className="nav-link">Switch to Driver</Link>
       </Header>
 
