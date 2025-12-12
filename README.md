@@ -637,7 +637,7 @@ MIT License - See LICENSE file for details
 
 **Project**: Uber Quick - Dynamic Ride Containers  
 **Repository**: https://github.com/Kartikeya-G121/uber_one_clone  
-**Branch**: queue-disp  
+**Branch**: pricing-feature
 **Built with**: FastAPI, React, Docker, PostgreSQL
 
 ---
