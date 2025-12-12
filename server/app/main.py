@@ -7,10 +7,12 @@ from . import crud, models, schemas
 from .database import SessionLocal, engine, get_db
 from .ride_service import ride_service
 from .container_manager import container_manager
-# from .migrations import run_migrations
+from .migrations import run_migrations
+from .pricing import PricingCalculator
 
 models.Base.metadata.create_all(bind=engine)
-# run_migrations()  # Uncomment to run migrations
+run_migrations()  # Run migrations to add new columns
+
 
 app = FastAPI(title="Uber API", version="1.0.0")
 
@@ -137,6 +139,82 @@ def get_queue_status():
 def get_emergency_queue_status():
     """Get status of emergency vs normal queues"""
     return ride_service.get_queue_status()
+
+@app.post("/calculate_price")
+def calculate_ride_price(request: Dict, db: Session = Depends(get_db)):
+    """
+    Calculate upfront price estimate for a ride
+    
+    Request body:
+    {
+        "pickup_lat": float,
+        "pickup_lon": float,
+        "drop_lat": float,
+        "drop_lon": float,
+        "is_emergency": bool (optional, default: false),
+        "apply_surge": bool (optional, default: true)
+    }
+    
+    Returns detailed fare breakdown including:
+    - Distance and estimated time
+    - Base fare, distance cost, time cost
+    - Surge pricing multiplier (if apply_surge is true)
+    - Emergency surcharge (if applicable)
+    - Total fare
+    """
+    try:
+        # Extract coordinates and options
+        pickup_lat = request.get("pickup_lat")
+        pickup_lon = request.get("pickup_lon")
+        drop_lat = request.get("drop_lat")
+        drop_lon = request.get("drop_lon")
+        is_emergency = request.get("is_emergency", False)
+        apply_surge = request.get("apply_surge", True)
+        
+        # Validate inputs
+        if not all([pickup_lat is not None, pickup_lon is not None, 
+                   drop_lat is not None, drop_lon is not None]):
+            raise HTTPException(
+                status_code=400, 
+                detail="Missing required coordinates: pickup_lat, pickup_lon, drop_lat, drop_lon"
+            )
+        
+        # Get queue status for surge pricing calculation
+        queue_status = ride_service.get_queue_status()
+        queue_length = queue_status.get("total_rides", 0)
+        available_drivers_count = queue_status.get("available_drivers", 0)
+        
+        # Calculate surge multiplier or disable it
+        if apply_surge:
+            surge_multiplier = None  # Let calculator determine it
+        else:
+            surge_multiplier = 1.0  # No surge pricing
+        
+        # Calculate fare
+        fare_breakdown = PricingCalculator.calculate_fare(
+            pickup_lat=float(pickup_lat),
+            pickup_lon=float(pickup_lon),
+            drop_lat=float(drop_lat),
+            drop_lon=float(drop_lon),
+            is_emergency=is_emergency,
+            surge_multiplier=surge_multiplier,
+            queue_length=queue_length,
+            available_drivers=available_drivers_count
+        )
+        
+        return {
+            "success": True,
+            "pricing": fare_breakdown,
+            "currency": "USD",
+            "message": "Price calculated successfully",
+            "surge_applied": apply_surge
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid coordinate values: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error calculating price: {str(e)}")
+
 
 @app.get("/queue_details")
 def get_queue_details():
