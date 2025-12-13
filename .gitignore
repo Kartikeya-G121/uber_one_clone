@@ -42,4 +42,4 @@ logs/
 postgres_data/
 
 # Docker
-.dockerignore
+.dockerignoreserver/venv/

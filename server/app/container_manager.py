@@ -27,19 +27,30 @@ class RideContainerManager:
             self.current_port += 1
             return port
     
-    def spawn_ride_container(self, ride_id: int, ride_data: Dict) -> Dict:
+    def spawn_ride_container(self, ride_id: int, ride_data: Dict, priority: str = "normal") -> Dict:
         """
         Spawn a new Docker container for a ride request
         
         Args:
             ride_id: The unique ride ID
             ride_data: Dictionary containing ride information
+            priority: "normal" or "emergency" - affects resource allocation
             
         Returns:
             Dictionary with container information including port mapping
         """
         port = self.get_next_port()
         container_name = f"uber-ride-{ride_id}"
+        
+        # Set resource limits based on priority
+        if priority == "emergency":
+            cpus = "1.0"  # More CPU for emergency rides
+            memory = "512m"  # More memory
+            priority_label = "🚨 EMERGENCY"
+        else:
+            cpus = "0.5"
+            memory = "256m"
+            priority_label = "🚗 NORMAL"
         
         try:
             # Build the Docker run command
@@ -49,9 +60,12 @@ class RideContainerManager:
                 "-d",  # Detached mode
                 "--name", container_name,
                 "-p", f"{port}:8000",  # Map host port to container port 8000
+                "--cpus", cpus,
+                "--memory", memory,
                 "-e", f"RIDE_ID={ride_id}",
                 "-e", f"RIDE_DATA={json.dumps(ride_data)}",
-                "-e", "DATABASE_URL=postgresql://postgres:informat.7@host.docker.internal:5433/uber_db",
+                "-e", f"PRIORITY={priority}",
+                "-e", "DATABASE_URL=postgresql://postgres:SHER@host.docker.internal:5433/uber_db",
                 "--network", "bridge",
                 "uber_one_clone-server:latest"  # Use existing image
             ]
@@ -74,6 +88,7 @@ class RideContainerManager:
                 'host_port': port,
                 'internal_port': 8000,
                 'ride_data': ride_data,
+                'priority': priority,
                 'started_at': datetime.now().isoformat(),
                 'status': 'running',
                 'url': f'http://localhost:{port}'
@@ -83,10 +98,12 @@ class RideContainerManager:
             
             # Print mapping
             print(f"\n{'='*70}")
-            print(f"🚗 NEW RIDE CONTAINER SPAWNED")
+            print(f"{priority_label} RIDE CONTAINER SPAWNED")
             print(f"{'='*70}")
             print(f"📋 Ride ID: {ride_id}")
-            print(f"🔌 Port Mapping: {port} (host) → 6000 (container)")
+            print(f"⚡ Priority: {priority.upper()}")
+            print(f"🔌 Port Mapping: {port} (host) → 8000 (container)")
+            print(f"💻 Resources: {cpus} CPUs, {memory} RAM")
             print(f"🐳 Container ID: {container_id[:12]}")
             print(f"🌐 Access URL: http://localhost:{port}")
             print(f"👤 User ID: {ride_data.get('user_id', 'N/A')}")

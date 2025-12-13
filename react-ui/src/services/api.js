@@ -12,24 +12,34 @@ const api = axios.create({
 export const rideAPI = {
   // Ride operations
   requestRide: (rideData) => api.post('/request_ride', rideData),
-  requestRideContainer: (rideData) => api.post('/request_ride_container', rideData),
+  requestRideContainer: (rideData, endpoint = '/request_ride_container') => api.post(endpoint, rideData),
+  requestEmergencyRide: (rideData) => api.post('/request_emergency_ride', rideData),
+  requestEmergencyRideContainer: (rideData) => api.post('/request_emergency_ride_container', rideData),
   getUserRides: (userId) => api.get(`/rides/${userId}`),
   addToQueue: (rideData) => api.post('/add_to_queue', rideData),
-  
+
   // Driver operations
   registerDriver: (driverData) => api.post('/register_driver', driverData),
   registerDriversBulk: (driversData) => api.post('/register_drivers_bulk', driversData),
   getAllDrivers: () => api.get('/drivers'),
   getAvailableDrivers: () => api.get('/drivers/available'),
   getDriver: (driverId) => api.get(`/driver/${driverId}`),
-  addDriverLocation: (driverId, latitude, longitude) => 
+  addDriverLocation: (driverId, latitude, longitude) =>
     api.post(`/add_driver_location?driver_id=${driverId}&latitude=${latitude}&longitude=${longitude}`),
-  
+
   // Assignment operations
   assignDriver: () => api.post('/assign_driver'),
   completeRide: (driverId) => api.post(`/complete_ride/${driverId}`),
+  endRide: (rideId) => api.post(`/end_ride/${rideId}`),
+  getDriverActiveRides: (driverId) => api.get(`/active_rides/driver/${driverId}`),
+  getUserActiveRides: (userId) => api.get(`/active_rides/user/${userId}`),
   getQueueStatus: () => api.get('/queue_status'),
-  
+  getQueueDetails: () => api.get('/queue_details'),
+  getEmergencyQueueStatus: () => api.get('/emergency_queue_status'),
+
+  // Pricing operations
+  calculatePrice: (priceData) => api.post('/calculate_price', priceData),
+
   // Container operations
   getRideContainers: () => api.get('/ride_containers'),
   getRideContainer: (rideId) => api.get(`/ride_container/${rideId}`),

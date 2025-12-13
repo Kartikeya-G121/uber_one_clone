@@ -2,14 +2,17 @@ from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from typing import List, Dict
+from datetime import datetime, timedelta
 from . import crud, models, schemas
 from .database import SessionLocal, engine, get_db
 from .ride_service import ride_service
 from .container_manager import container_manager
-# from .migrations import run_migrations
+from .migrations import run_migrations
+from .pricing import PricingCalculator
 
 models.Base.metadata.create_all(bind=engine)
-# run_migrations()  # Uncomment to run migrations
+run_migrations()  # Run migrations to add new columns
+
 
 app = FastAPI(title="Uber API", version="1.0.0")
 
@@ -47,6 +50,19 @@ def register_drivers_bulk(bulk_data: schemas.BulkDriverCreate, db: Session = Dep
 
 @app.post("/assign_driver")
 def assign_driver(db: Session = Depends(get_db)):
+    # If no drivers in the queue system, try to load from database
+    if not ride_service.available_drivers:
+        available_drivers_db = crud.get_available_drivers(db)
+        for driver in available_drivers_db:
+            # Use driver location if available, otherwise use default location
+            lat = driver.latitude if driver.latitude else 40.7128
+            lon = driver.longitude if driver.longitude else -74.0060
+            driver_data = {
+                "id": driver.id,
+                "location": (lat, lon)
+            }
+            ride_service.available_drivers.append(driver_data)
+    
     assignment = ride_service.assign_driver()
     if assignment is None:
         raise HTTPException(status_code=404, detail="No rides or drivers available")
@@ -55,33 +71,314 @@ def assign_driver(db: Session = Depends(get_db)):
     driver_id = assignment["driver"]["id"]
     crud.update_driver_status(db, driver_id, "busy")
     
+    # Track ride assignment in database
+    ride_id = assignment["request"]["id"]
+    crud.assign_ride_to_driver(db, ride_id, driver_id)
+    
     return assignment
 
 @app.post("/add_to_queue")
-def add_to_queue(ride: schemas.RideRequestCreate):
+def add_to_queue(ride: schemas.RideRequestCreate, db: Session = Depends(get_db)):
+    """Add ride to queue (supports priority)"""
+    priority_val = ride.priority if ride.priority else schemas.RidePriority.NORMAL
+    priority_str = priority_val.value if hasattr(priority_val, 'value') else str(priority_val)
+    
+    # Get the most recent ride for this user from database
+    db_ride = db.query(models.RideRequest).filter(
+        models.RideRequest.user_id == ride.user_id
+    ).order_by(models.RideRequest.created_at.desc()).first()
+    
+    ride_id = db_ride.id if db_ride else len(ride_service.ride_queue) + 1
+    
     ride_data = {
-        "id": len(ride_service.ride_queue) + 1,
+        "id": ride_id,
+        "user_id": ride.user_id,
         "pickup": (ride.pickup_lat, ride.pickup_lon),
-        "destination": (ride.drop_lat, ride.drop_lon)
+        "destination": (ride.drop_lat, ride.drop_lon),
+        "priority": priority_str
     }
-    ride_service.ride_queue.append(ride_data)
-    return {"message": "Ride added to queue", "queue_position": len(ride_service.ride_queue)}
+    ride_service.add_ride_to_queue(ride_data, priority_str)
+    queue_status = ride_service.get_queue_status()
+    
+    return {
+        "message": f"Ride added to {priority_str} queue",
+        "queue_status": queue_status,
+        "ride_id": ride_id
+    }
 
 @app.post("/add_driver_location")
-def add_driver_location(driver_id: int, latitude: float, longitude: float):
+def add_driver_location(driver_id: int, latitude: float, longitude: float, db: Session = Depends(get_db)):
+    """Update driver's location in the database and add to available pool"""
+    driver = crud.update_driver_location(db, driver_id, latitude, longitude)
+    if not driver:
+        raise HTTPException(status_code=404, detail="Driver not found")
+    
+    # Add driver to in-memory available pool for ride assignment
     driver_data = {
         "id": driver_id,
         "location": (latitude, longitude)
     }
+    # Remove old entry if exists
+    ride_service.available_drivers = [d for d in ride_service.available_drivers if d["id"] != driver_id]
+    # Add updated entry
     ride_service.available_drivers.append(driver_data)
-    return {"message": "Driver added to available pool"}
+    
+    return {
+        "message": "Driver location updated successfully",
+        "driver_id": driver.id,
+        "latitude": driver.latitude,
+        "longitude": driver.longitude
+    }
 
 @app.get("/queue_status")
 def get_queue_status():
-    return {
-        "rides_in_queue": len(ride_service.ride_queue),
-        "available_drivers": len(ride_service.available_drivers)
+    """Get detailed queue status including emergency and normal counts"""
+    return ride_service.get_queue_status()
+
+@app.get("/emergency_queue_status")
+def get_emergency_queue_status():
+    """Get status of emergency vs normal queues"""
+    return ride_service.get_queue_status()
+
+@app.post("/calculate_price")
+def calculate_ride_price(request: Dict, db: Session = Depends(get_db)):
+    """
+    Calculate upfront price estimate for a ride
+    
+    Request body:
+    {
+        "pickup_lat": float,
+        "pickup_lon": float,
+        "drop_lat": float,
+        "drop_lon": float,
+        "is_emergency": bool (optional, default: false),
+        "apply_surge": bool (optional, default: true)
     }
+    
+    Returns detailed fare breakdown including:
+    - Distance and estimated time
+    - Base fare, distance cost, time cost
+    - Surge pricing multiplier (if apply_surge is true)
+    - Emergency surcharge (if applicable)
+    - Total fare
+    """
+    try:
+        # Extract coordinates and options
+        pickup_lat = request.get("pickup_lat")
+        pickup_lon = request.get("pickup_lon")
+        drop_lat = request.get("drop_lat")
+        drop_lon = request.get("drop_lon")
+        is_emergency = request.get("is_emergency", False)
+        apply_surge = request.get("apply_surge", True)
+        
+        # Validate inputs
+        if not all([pickup_lat is not None, pickup_lon is not None, 
+                   drop_lat is not None, drop_lon is not None]):
+            raise HTTPException(
+                status_code=400, 
+                detail="Missing required coordinates: pickup_lat, pickup_lon, drop_lat, drop_lon"
+            )
+        
+        # Get queue status for surge pricing calculation
+        queue_status = ride_service.get_queue_status()
+        queue_length = queue_status.get("total_rides", 0)
+        available_drivers_count = queue_status.get("available_drivers", 0)
+        
+        # Calculate surge multiplier or disable it
+        if apply_surge:
+            surge_multiplier = None  # Let calculator determine it
+        else:
+            surge_multiplier = 1.0  # No surge pricing
+        
+        # Calculate fare
+        fare_breakdown = PricingCalculator.calculate_fare(
+            pickup_lat=float(pickup_lat),
+            pickup_lon=float(pickup_lon),
+            drop_lat=float(drop_lat),
+            drop_lon=float(drop_lon),
+            is_emergency=is_emergency,
+            surge_multiplier=surge_multiplier,
+            queue_length=queue_length,
+            available_drivers=available_drivers_count
+        )
+        
+        return {
+            "success": True,
+            "pricing": fare_breakdown,
+            "currency": "USD",
+            "message": "Price calculated successfully",
+            "surge_applied": apply_surge
+        }
+        
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=f"Invalid coordinate values: {str(e)}")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error calculating price: {str(e)}")
+
+
+@app.get("/queue_details")
+def get_queue_details():
+    """Get detailed list of rides in queue"""
+    emergency_rides = []
+    normal_rides = []
+    
+    # Get emergency rides
+    for timestamp, ride in sorted(ride_service.emergency_queue):
+        emergency_rides.append({
+            "id": ride.get("id"),
+            "user_id": ride.get("user_id"),
+            "pickup": ride.get("pickup"),
+            "destination": ride.get("destination"),
+            "priority": "EMERGENCY",
+            "queued_at": timestamp.isoformat()
+        })
+    
+    # Get normal rides
+    for ride in ride_service.normal_queue:
+        normal_rides.append({
+            "id": ride.get("id"),
+            "user_id": ride.get("user_id"),
+            "pickup": ride.get("pickup"),
+            "destination": ride.get("destination"),
+            "priority": "NORMAL",
+            "queued_at": None  # Normal queue doesn't store timestamp
+        })
+    
+    return {
+        "emergency_rides": emergency_rides,
+        "normal_rides": normal_rides,
+        "total_emergency": len(emergency_rides),
+        "total_normal": len(normal_rides),
+        "total_rides": len(emergency_rides) + len(normal_rides)
+    }
+
+@app.post("/request_emergency_ride", response_model=dict)
+def request_emergency_ride(ride: schemas.RideRequestCreate, db: Session = Depends(get_db)):
+    """
+    Request an emergency ride with 5-minute guarantee and priority handling.
+    Emergency rides get:
+    - Priority in queue
+    - More container resources
+    - 5-minute guarantee
+    - 50% surcharge
+    """
+    # Force priority to emergency
+    ride.priority = schemas.RidePriority.EMERGENCY
+    
+    # Create ride in database with emergency fields
+    now = datetime.now()
+    guaranteed_time = now + timedelta(minutes=5)
+    
+    db_ride = models.RideRequest(
+        user_id=ride.user_id,
+        pickup_location=ride.pickup_location,
+        drop_location=ride.drop_location,
+        pickup_lat=ride.pickup_lat,
+        pickup_lon=ride.pickup_lon,
+        drop_lat=ride.drop_lat,
+        drop_lon=ride.drop_lon,
+        priority=models.RidePriority.EMERGENCY,
+        emergency_requested_at=now,
+        guaranteed_by=guaranteed_time,
+        emergency_surcharge=1.5  # 50% surcharge (1.5x base fare)
+    )
+    db.add(db_ride)
+    db.commit()
+    db.refresh(db_ride)
+    
+    # Add to emergency queue
+    ride_data = {
+        "id": db_ride.id,
+        "pickup": (ride.pickup_lat, ride.pickup_lon),
+        "destination": (ride.drop_lat, ride.drop_lon),
+        "priority": "emergency"
+    }
+    ride_service.add_ride_to_queue(ride_data, "emergency")
+    
+    # Try to assign driver immediately if available
+    assignment = None
+    if ride_service.available_drivers:
+        assignment = ride_service.assign_driver()
+    
+    queue_status = ride_service.get_queue_status()
+    
+    return {
+        "success": True,
+        "ride_id": db_ride.id,
+        "priority": "EMERGENCY",
+        "guaranteed_by": guaranteed_time.strftime("%I:%M %p"),
+        "guaranteed_by_iso": guaranteed_time.isoformat(),
+        "emergency_surcharge": "50%",
+        "surcharge_multiplier": 1.5,
+        "assignment": assignment,
+        "queue_status": queue_status,
+        "message": f"🚨 Emergency ride confirmed! Guaranteed pickup by {guaranteed_time.strftime('%I:%M %p')}"
+    }
+
+@app.post("/request_emergency_ride_container", response_model=dict)
+def request_emergency_ride_with_container(ride: schemas.RideRequestCreate, db: Session = Depends(get_db)):
+    """
+    Request an emergency ride with dedicated container and priority handling.
+    This spawns a high-priority container with more resources.
+    """
+    # Force priority to emergency
+    ride.priority = schemas.RidePriority.EMERGENCY
+    
+    # Create ride in database with emergency fields
+    now = datetime.now()
+    guaranteed_time = now + timedelta(minutes=5)
+    
+    db_ride = models.RideRequest(
+        user_id=ride.user_id,
+        pickup_location=ride.pickup_location,
+        drop_location=ride.drop_location,
+        pickup_lat=ride.pickup_lat,
+        pickup_lon=ride.pickup_lon,
+        drop_lat=ride.drop_lat,
+        drop_lon=ride.drop_lon,
+        priority=models.RidePriority.EMERGENCY,
+        emergency_requested_at=now,
+        guaranteed_by=guaranteed_time,
+        emergency_surcharge=1.5
+    )
+    db.add(db_ride)
+    db.commit()
+    db.refresh(db_ride)
+    
+    # Prepare ride data for the container
+    ride_data = {
+        'id': db_ride.id,
+        'user_id': db_ride.user_id,
+        'pickup_location': db_ride.pickup_location,
+        'drop_location': db_ride.drop_location,
+        'pickup_lat': db_ride.pickup_lat,
+        'pickup_lon': db_ride.pickup_lon,
+        'drop_lat': db_ride.drop_lat,
+        'drop_lon': db_ride.drop_lon,
+        'created_at': db_ride.created_at.isoformat(),
+        'priority': 'emergency'
+    }
+    
+    try:
+        # Spawn emergency container with priority resources
+        container_info = container_manager.spawn_ride_container(db_ride.id, ride_data, priority="emergency")
+        
+        return {
+            'success': True,
+            'ride_id': db_ride.id,
+            'priority': 'EMERGENCY',
+            'guaranteed_by': guaranteed_time.strftime("%I:%M %p"),
+            'guaranteed_by_iso': guaranteed_time.isoformat(),
+            'emergency_surcharge': '50%',
+            'surcharge_multiplier': 1.5,
+            'container_port': container_info['host_port'],
+            'container_url': container_info['url'],
+            'container_id': container_info['container_id'][:12],
+            'container_resources': '1.0 CPUs, 512MB RAM',
+            'message': f"🚨 Emergency ride container spawned! Guaranteed pickup by {guaranteed_time.strftime('%I:%M %p')}"
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to spawn emergency container: {str(e)}")
 
 @app.get("/driver/{driver_id}", response_model=schemas.Driver)
 def get_driver(driver_id: int, db: Session = Depends(get_db)):
@@ -107,6 +404,67 @@ def complete_ride(driver_id: int, db: Session = Depends(get_db)):
         }
     }
 
+@app.post("/end_ride/{ride_id}")
+def end_ride(ride_id: int, db: Session = Depends(get_db)):
+    """End a ride and mark it as completed"""
+    ride = crud.complete_ride(db, ride_id)
+    if not ride:
+        raise HTTPException(status_code=404, detail="Ride not found")
+    
+    # Make driver available again and update location to drop location if assigned
+    if ride.driver_id:
+        crud.update_driver_status(db, ride.driver_id, "available")
+        # Update driver's location to the drop location (end of ride)
+        crud.update_driver_location(db, ride.driver_id, ride.drop_lat, ride.drop_lon)
+    
+    return {
+        "message": f"Ride {ride_id} completed successfully",
+        "ride": {
+            "id": ride.id,
+            "status": ride.status,
+            "user_id": ride.user_id,
+            "driver_id": ride.driver_id,
+            "completed_at": ride.completed_at.isoformat() if ride.completed_at else None,
+            "drop_location": ride.drop_location,
+            "drop_coordinates": {"lat": ride.drop_lat, "lon": ride.drop_lon}
+        }
+    }
+
+@app.get("/active_rides/driver/{driver_id}")
+def get_driver_active_rides(driver_id: int, db: Session = Depends(get_db)):
+    """Get all active rides for a specific driver"""
+    rides = crud.get_active_rides_by_driver(db, driver_id)
+    return [
+        {
+            "id": ride.id,
+            "user_id": ride.user_id,
+            "pickup_location": ride.pickup_location,
+            "drop_location": ride.drop_location,
+            "status": ride.status,
+            "priority": ride.priority.value if ride.priority else "NORMAL",
+            "assigned_at": ride.assigned_at.isoformat() if ride.assigned_at else None
+        }
+        for ride in rides
+    ]
+
+@app.get("/active_rides/user/{user_id}")
+def get_user_active_rides(user_id: int, db: Session = Depends(get_db)):
+    """Get all active rides for a specific user"""
+    rides = crud.get_active_rides_by_user(db, user_id)
+    return [
+        {
+            "id": ride.id,
+            "driver_id": ride.driver_id,
+            "pickup_location": ride.pickup_location,
+            "drop_location": ride.drop_location,
+            "status": ride.status,
+            "priority": ride.priority.value if ride.priority else "NORMAL",
+            "created_at": ride.created_at.isoformat() if ride.created_at else None,
+            "assigned_at": ride.assigned_at.isoformat() if ride.assigned_at else None
+        }
+        for ride in rides
+    ]
+
 @app.get("/")
 def root():
     return {"message": "Uber API is running"}
@@ -120,7 +478,8 @@ def root():
 def request_ride_with_container(ride: schemas.RideRequestCreate, db: Session = Depends(get_db)):
     """
     Create a ride request and spawn a dedicated Docker container for it.
-    Each ride runs in its own container on a unique port (6000, 6001, 6002, ...)
+    Each ride runs in its own container on a unique port (7000, 7001, 7002, ...)
+    Supports both normal and emergency priorities.
     """
     # First, create the ride in the database
     db_ride = crud.create_ride_request(db=db, ride=ride)
@@ -138,13 +497,17 @@ def request_ride_with_container(ride: schemas.RideRequestCreate, db: Session = D
         'created_at': db_ride.created_at.isoformat()
     }
     
+    # Get priority (default to normal if not specified)
+    priority = ride.priority.value if hasattr(ride, 'priority') and ride.priority else "normal"
+    
     try:
-        # Spawn a new container for this ride
-        container_info = container_manager.spawn_ride_container(db_ride.id, ride_data)
+        # Spawn a new container for this ride with appropriate priority
+        container_info = container_manager.spawn_ride_container(db_ride.id, ride_data, priority=priority)
         
         # Return the ride info with container details
         return {
             **ride_data,
+            'priority': priority.upper(),
             'container_port': container_info['host_port'],
             'container_url': container_info['url'],
             'container_id': container_info['container_id'][:12]
