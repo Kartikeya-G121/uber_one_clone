@@ -1,0 +1,30 @@
+pipeline:
+  image: python:3.11-slim
+
+  environment:
+    PYTHONDONTWRITEBYTECODE: "1"
+    PYTHONUNBUFFERED: "1"
+
+  stages:
+    - name: install
+      run: pip install -r requirements.txt
+
+    - name: lint
+      run: pip install flake8 && flake8 . --max-line-length=120
+      when: success
+
+    - name: test
+      run: pip install pytest && pytest tests/ -v
+      when: success
+
+    - name: build
+      run: pip install build && python -m build
+      when: success
+
+    - name: notify
+      run: echo "Pipeline finished for $COMMIT_SHA on $BRANCH_NAME"
+      when: always
+
+  artifacts:
+    paths:
+      - dist/
