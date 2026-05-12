@@ -4,6 +4,7 @@ Uber-like app with FastAPI backend where **each ride runs in its own Docker cont
 
 ## 🚀 Quick Start
 
+
 ```bash
 # 1. Setup (one-time)
 ./setup_containers.sh
