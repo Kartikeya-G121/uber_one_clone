@@ -2,7 +2,6 @@
 
 **Uber Quick** is a FastAPI-based ride-sharing platform that reimagines scalability by isolating each ride within its own Docker container. The system features a central server that manages the lifecycle of ride containers, automatically allocating ports starting from 7000 for each new ride. Every ride instance runs independently, providing clean isolation, easier debugging, and seamless scalability. Core functionalities include containerized ride management, driver-rider matching via the Haversine formula for location accuracy, and priority-based ride assignment with an innovative Emergency feature. The backend integrates with PostgreSQL for storing drivers and ride request data, while the React web UI offers dedicated views for riders, drivers, and admins. Designed for efficiency and experimentation, the project simplifies container orchestration with scripts for setup, spawning test rides, and cleanup. With its modular architecture, per-ride logging, and automated container lifecycle management, Uber Quick demonstrates a highly scalable, microservice-inspired approach to real-time ride management.
 
-
 ---
 
 
