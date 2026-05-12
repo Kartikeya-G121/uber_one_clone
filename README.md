@@ -1,4 +1,4 @@
-# 🚗 Uber Clone - Dynamic Ride Containers
+# Uber Clone - Dynamic Ride Containers
 
 Uber-like app with FastAPI backend where **each ride runs in its own Docker container** on a separate port.
 
